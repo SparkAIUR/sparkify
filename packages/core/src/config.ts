@@ -2,7 +2,13 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 import { ExitCode, SparkifyError } from "./errors.js";
-import type { ConfigOverrides, SparkifyConfigV1 } from "./types.js";
+import type {
+  ApiConfig,
+  CompatConfig,
+  ConfigOverrides,
+  RendererConfig,
+  SparkifyConfigV1
+} from "./types.js";
 
 const openApiSchema = z.object({
   id: z.string().min(1),
@@ -32,6 +38,25 @@ const configSchema = z.object({
       pythonPath: z.string().optional()
     })
     .optional(),
+  compat: z
+    .object({
+      allowMintJson: z.boolean().optional(),
+      preferDocsJson: z.boolean().optional()
+    })
+    .optional(),
+  api: z
+    .object({
+      mode: z.enum(["endpoint-pages", "single-page"]).optional(),
+      generateMissingEndpointPages: z.boolean().optional(),
+      apiRoot: z.string().optional()
+    })
+    .optional(),
+  renderer: z
+    .object({
+      engine: z.enum(["mintlify-astro", "legacy"]).optional(),
+      fallbackLegacyRenderer: z.boolean().optional()
+    })
+    .optional(),
   playground: z
     .object({
       provider: z.literal("stoplight").optional(),
@@ -57,6 +82,22 @@ const configSchema = z.object({
 
 type SchemaConfig = z.infer<typeof configSchema>;
 
+const DEFAULT_COMPAT: CompatConfig = {
+  allowMintJson: true,
+  preferDocsJson: true
+};
+
+const DEFAULT_API: ApiConfig = {
+  mode: "endpoint-pages",
+  generateMissingEndpointPages: true,
+  apiRoot: "/api-reference"
+};
+
+const DEFAULT_RENDERER: RendererConfig = {
+  engine: "mintlify-astro",
+  fallbackLegacyRenderer: true
+};
+
 const DEFAULTS: SparkifyConfigV1 = {
   docsDir: "./docs",
   outDir: "./dist",
@@ -66,6 +107,9 @@ const DEFAULTS: SparkifyConfigV1 = {
   exclude: ["**/snippets/**", "**/_generated/**", "**/.*/**"],
   dirTitleMap: {},
   openapi: [],
+  compat: DEFAULT_COMPAT,
+  api: DEFAULT_API,
+  renderer: DEFAULT_RENDERER,
   playground: {
     provider: "stoplight",
     auth: {
@@ -95,7 +139,8 @@ function normalizeRoute(route: string | undefined): string {
     return "/api";
   }
 
-  return route.startsWith("/") ? route : `/${route}`;
+  const prefixed = route.startsWith("/") ? route : `/${route}`;
+  return prefixed.endsWith("/") && prefixed !== "/" ? prefixed.slice(0, -1) : prefixed;
 }
 
 function isHttpUrl(value: string): boolean {
@@ -106,8 +151,30 @@ function resolvePath(cwd: string, value: string): string {
   return path.isAbsolute(value) ? value : path.resolve(cwd, value);
 }
 
+function definedOnly<T extends Record<string, unknown>>(input: T): Partial<T> {
+  const output: Partial<T> = {};
+  for (const [key, value] of Object.entries(input)) {
+    if (value !== undefined) {
+      (output as Record<string, unknown>)[key] = value;
+    }
+  }
+  return output;
+}
+
 function mergeConfig(base: SchemaConfig, incoming: ConfigOverrides): SchemaConfig {
-  const mergedFastapi = incoming.fastapi ? { ...(base.fastapi ?? {}), ...incoming.fastapi } : base.fastapi;
+  const {
+    openapi,
+    fastapi,
+    playground,
+    compat,
+    api,
+    renderer,
+    configPath,
+    ...incomingTopLevel
+  } = incoming;
+  void configPath;
+
+  const mergedFastapi = fastapi ? { ...(base.fastapi ?? {}), ...definedOnly(fastapi) } : base.fastapi;
   const normalizedFastapi =
     mergedFastapi && typeof mergedFastapi.app === "string"
       ? (mergedFastapi as NonNullable<SchemaConfig["fastapi"]>)
@@ -115,23 +182,26 @@ function mergeConfig(base: SchemaConfig, incoming: ConfigOverrides): SchemaConfi
 
   return {
     ...base,
-    ...incoming,
+    ...definedOnly(incomingTopLevel),
     fastapi: normalizedFastapi,
-    playground: incoming.playground
+    compat: compat ? { ...(base.compat ?? {}), ...definedOnly(compat) } : base.compat,
+    api: api ? { ...(base.api ?? {}), ...definedOnly(api) } : base.api,
+    renderer: renderer ? { ...(base.renderer ?? {}), ...definedOnly(renderer) } : base.renderer,
+    playground: playground
       ? {
           ...(base.playground ?? {}),
-          ...incoming.playground,
+          ...definedOnly(playground),
           auth: {
             ...(base.playground?.auth ?? {}),
-            ...(incoming.playground.auth ?? {}),
+            ...definedOnly(playground.auth ?? {}),
             oauth2: {
               ...(base.playground?.auth?.oauth2 ?? {}),
-              ...(incoming.playground.auth?.oauth2 ?? {})
+              ...definedOnly(playground.auth?.oauth2 ?? {})
             }
           }
         }
       : base.playground,
-    openapi: incoming.openapi ?? base.openapi
+    openapi: openapi ?? base.openapi
   };
 }
 
@@ -169,6 +239,22 @@ async function loadConfigFile(cwd: string, configPath?: string): Promise<SchemaC
 function toConfigAbsolute(cwd: string, config: SchemaConfig): SparkifyConfigV1 {
   const docsDir = resolvePath(cwd, config.docsDir ?? DEFAULTS.docsDir);
   const outDir = resolvePath(cwd, config.outDir ?? DEFAULTS.outDir);
+  const compat: CompatConfig = {
+    allowMintJson: config.compat?.allowMintJson ?? DEFAULTS.compat.allowMintJson,
+    preferDocsJson: config.compat?.preferDocsJson ?? DEFAULTS.compat.preferDocsJson
+  };
+  const api: ApiConfig = {
+    mode: config.api?.mode ?? DEFAULTS.api.mode,
+    generateMissingEndpointPages:
+      config.api?.generateMissingEndpointPages ?? DEFAULTS.api.generateMissingEndpointPages,
+    apiRoot: normalizeRoute(config.api?.apiRoot ?? DEFAULTS.api.apiRoot)
+  };
+  const renderer: RendererConfig = {
+    engine: config.renderer?.engine ?? DEFAULTS.renderer.engine,
+    fallbackLegacyRenderer:
+      config.renderer?.fallbackLegacyRenderer ?? DEFAULTS.renderer.fallbackLegacyRenderer
+  };
+  const defaultOpenApiRoute = api.mode === "single-page" ? "/api" : api.apiRoot;
 
   return {
     docsDir,
@@ -182,7 +268,7 @@ function toConfigAbsolute(cwd: string, config: SchemaConfig): SparkifyConfigV1 {
     openapi: (config.openapi ?? DEFAULTS.openapi).map((entry) => ({
       ...entry,
       source: isHttpUrl(entry.source) ? entry.source : resolvePath(cwd, entry.source),
-      route: normalizeRoute(entry.route)
+      route: normalizeRoute(entry.route ?? defaultOpenApiRoute)
     })),
     fastapi: config.fastapi
       ? {
@@ -194,6 +280,9 @@ function toConfigAbsolute(cwd: string, config: SchemaConfig): SparkifyConfigV1 {
           cwd: config.fastapi.cwd ? resolvePath(cwd, config.fastapi.cwd) : cwd
         }
       : undefined,
+    compat,
+    api,
+    renderer,
     playground: {
       provider: config.playground?.provider ?? DEFAULTS.playground.provider,
       tryItCorsProxy: config.playground?.tryItCorsProxy,

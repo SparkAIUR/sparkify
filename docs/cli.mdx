@@ -13,6 +13,8 @@ Scaffold docs starter files.
 
 Run local preview server with workspace rebuild on docs/python changes.
 
+Also reports docs config source (`docs.json`, `mint.json`, or generated fallback).
+
 ## `sparkify build`
 
 Build static output (default `./dist`).
@@ -21,10 +23,16 @@ Useful flags:
 - `--site https://<user>.github.io`
 - `--base /<repo>`
 - `--strict`
+- `--config ./sparkify.config.json`
 
 ## `sparkify doctor`
 
 Checks Node version, docs directory, config parsing, and OpenAPI validity.
+
+Reports:
+- docs config source
+- compatibility warnings for unsupported config keys
+- endpoint-page generation readiness
 
 ## `sparkify export-openapi`
 

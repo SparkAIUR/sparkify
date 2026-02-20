@@ -1,8 +1,30 @@
 ---
+interface TopbarLink {
+  name: string;
+  url: string;
+}
+
+interface TopbarCtaButton {
+  name: string;
+  url: string;
+}
+
+interface DocsTab {
+  name: string;
+  url: string;
+}
+
+interface DocsAnchor {
+  name: string;
+  icon?: string;
+  url?: string;
+}
+
 interface NavLink {
   title: string;
   path: string;
   href: string;
+  methodBadge?: string;
 }
 
 interface NavGroup {
@@ -10,172 +32,627 @@ interface NavGroup {
   links: NavLink[];
 }
 
+interface SiteChrome {
+  name: string;
+  logo?: string | { light?: string; dark?: string; href?: string };
+  favicon?: string;
+  colors?: {
+    primary?: string;
+    light?: string;
+    dark?: string;
+    anchors?: {
+      from?: string;
+      to?: string;
+    };
+  };
+  topbarLinks?: TopbarLink[];
+  topbarCtaButton?: TopbarCtaButton;
+  tabs?: DocsTab[];
+  anchors?: DocsAnchor[];
+  footerSocials?: Record<string, string>;
+}
+
 interface Props {
   title: string;
   currentPath: string;
   nav: {
+    site: SiteChrome;
     groups: NavGroup[];
   };
 }
 
 const { title, currentPath, nav } = Astro.props;
 const base = import.meta.env.BASE_URL || "/";
+const site = nav.site ?? { name: "sparkify" };
+const docsTab: DocsTab = { name: "Documentation", url: "index" };
+const tabs = [
+  docsTab,
+  ...(site.tabs ?? []).filter((tab) => tab.name !== docsTab.name || tab.url !== docsTab.url)
+];
+
+const logoValue = site.logo;
+const logoHref = typeof logoValue === "object" && logoValue?.href ? logoValue.href : "index";
+const logoLight = typeof logoValue === "string" ? logoValue : logoValue?.light;
 
 function withBase(href: string): string {
   const trimmedBase = base.endsWith("/") ? base.slice(0, -1) : base;
-  if (href === "index") {
+  if (href === "index" || href === "/") {
     return `${trimmedBase || ""}/`;
   }
-  return `${trimmedBase || ""}/${href}`;
+  const sanitized = href.replace(/^\/+/, "");
+  return `${trimmedBase || ""}/${sanitized}`;
 }
+
+function resolveLink(rawHref: string | undefined): string {
+  if (!rawHref) {
+    return "#";
+  }
+  if (/^(https?:\/\/|mailto:|#)/i.test(rawHref)) {
+    return rawHref;
+  }
+  return withBase(rawHref);
+}
+
+function isCurrentPathActive(pathValue: string | undefined): boolean {
+  if (!pathValue) {
+    return false;
+  }
+  const normalized = pathValue.replace(/^\/+/, "").replace(/\/+$/, "");
+  const normalizedCurrent = currentPath.replace(/^\/+/, "").replace(/\/+$/, "");
+  if (!normalized) {
+    return normalizedCurrent === "" || normalizedCurrent === "index";
+  }
+  return normalizedCurrent === normalized || normalizedCurrent.startsWith(`${normalized}/`);
+}
+
+const primaryColor = site.colors?.primary ?? "#7c3aed";
+const lightColor = site.colors?.light ?? "#a78bfa";
+const darkColor = site.colors?.dark ?? "#5b21b6";
+const anchorFrom = site.colors?.anchors?.from ?? primaryColor;
+const anchorTo = site.colors?.anchors?.to ?? lightColor;
+const themeVarStyle = `--primary:${primaryColor};--primary-light:${lightColor};--primary-dark:${darkColor};--anchor-from:${anchorFrom};--anchor-to:${anchorTo};`;
 ---
 
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{title} | sparkify</title>
+    <title>{title} | {site.name ?? "sparkify"}</title>
+    {site.favicon ? <link rel="icon" href={resolveLink(site.favicon)} /> : null}
     <style>
       :root {
-        --bg: #f8fafc;
+        --bg: #f8f8fb;
         --surface: #ffffff;
-        --text: #0f172a;
-        --muted: #64748b;
-        --border: #e2e8f0;
-        --brand: #2563eb;
+        --text: #1f2430;
+        --muted: #6b7280;
+        --border: #e5e7eb;
+        --sidebar: #fafafc;
+        --primary: #7c3aed;
+        --primary-light: #a78bfa;
+        --primary-dark: #5b21b6;
+        --anchor-from: #7c3aed;
+        --anchor-to: #a78bfa;
+        --radius: 14px;
       }
 
       * {
         box-sizing: border-box;
       }
 
+      html,
       body {
         margin: 0;
-        font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
-        background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
-        color: var(--text);
-      }
-
-      .shell {
-        display: grid;
-        grid-template-columns: minmax(220px, 280px) 1fr;
-        min-height: 100vh;
-      }
-
-      nav {
-        border-right: 1px solid var(--border);
-        padding: 1.5rem 1rem;
-        background: var(--surface);
-        position: sticky;
-        top: 0;
-        max-height: 100vh;
-        overflow: auto;
-      }
-
-      nav h2 {
-        margin: 0 0 1rem;
-        font-size: 1rem;
-      }
-
-      nav h3 {
-        margin: 1rem 0 0.5rem;
-        font-size: 0.85rem;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        color: var(--muted);
-      }
-
-      nav ul {
-        list-style: none;
-        margin: 0;
         padding: 0;
+        min-height: 100%;
       }
 
-      nav a {
-        display: block;
-        padding: 0.35rem 0.5rem;
-        border-radius: 0.4rem;
+      body {
+        font-family:
+          "Satoshi",
+          "Manrope",
+          "Avenir Next",
+          "Segoe UI",
+          sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(1300px 500px at 50% -200px, #ece7ff 0%, transparent 60%),
+          var(--bg);
+      }
+
+      a {
         color: inherit;
         text-decoration: none;
       }
 
-      nav a:hover {
-        background: #eff6ff;
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        align-items: center;
+        gap: 1rem;
+        height: 70px;
+        padding: 0 1.25rem;
+        background: rgba(255, 255, 255, 0.96);
+        backdrop-filter: blur(8px);
+        border-bottom: 1px solid var(--border);
       }
 
-      nav a[data-active="true"] {
-        background: #dbeafe;
-        color: #1e40af;
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+      }
+
+      .brand-logo {
+        width: 30px;
+        height: 30px;
+        border-radius: 9px;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        color: #fff;
+        font-size: 0.95rem;
+        font-weight: 700;
+      }
+
+      .brand-logo img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+
+      .brand-name {
+        font-weight: 650;
+        letter-spacing: -0.01em;
+      }
+
+      .search-shell {
+        max-width: 460px;
+        width: 100%;
+        justify-self: center;
+      }
+
+      .search-input {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: #fff;
+        color: var(--muted);
+        padding: 0.7rem 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 0.95rem;
+      }
+
+      .search-key {
+        color: #9ca3af;
+        font-size: 0.82rem;
+      }
+
+      .topbar-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+      }
+
+      .topbar-link {
+        color: #4b5563;
+        font-size: 0.94rem;
+      }
+
+      .cta {
+        background: var(--primary);
+        color: #fff;
+        border-radius: 12px;
+        padding: 0.55rem 0.9rem;
+        font-size: 0.9rem;
         font-weight: 600;
       }
 
-      main {
-        padding: 2rem;
-        max-width: 900px;
-        width: 100%;
+      .tabs {
+        position: sticky;
+        top: 70px;
+        z-index: 45;
+        display: flex;
+        gap: 1.5rem;
+        align-items: flex-end;
+        height: 52px;
+        padding: 0 1.25rem;
+        background: rgba(255, 255, 255, 0.94);
+        border-bottom: 1px solid var(--border);
+      }
+
+      .tab-link {
+        height: 100%;
+        display: inline-flex;
+        align-items: center;
+        border-bottom: 2px solid transparent;
+        color: #4b5563;
+        font-weight: 600;
+        font-size: 0.98rem;
+      }
+
+      .tab-link[data-active="true"] {
+        border-color: var(--primary);
+        color: #18181b;
+      }
+
+      .shell {
+        display: grid;
+        grid-template-columns: minmax(240px, 300px) minmax(0, 1fr) minmax(220px, 280px);
+        align-items: start;
+        gap: 1.5rem;
+        padding: 1.5rem 1.25rem 2.5rem;
+      }
+
+      .sidebar {
+        position: sticky;
+        top: 132px;
+        max-height: calc(100vh - 150px);
+        overflow: auto;
+        padding: 0.25rem;
+      }
+
+      .sidebar-anchor {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        margin: 0 0 1.1rem 0.3rem;
+        color: #4b5563;
+        font-weight: 560;
+        font-size: 0.95rem;
+      }
+
+      .anchor-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--anchor-from), var(--anchor-to));
+      }
+
+      .nav-group {
+        margin-bottom: 1.2rem;
+      }
+
+      .nav-group h3 {
+        margin: 0 0 0.55rem;
+        padding-left: 0.35rem;
+        font-size: 0.92rem;
+        font-weight: 650;
+        color: #16181d;
+      }
+
+      .nav-list {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .nav-link {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.55rem;
+        padding: 0.44rem 0.58rem;
+        border-radius: 11px;
+        color: #4b5563;
+        font-size: 0.94rem;
+      }
+
+      .nav-link:hover {
+        background: #f0f2f8;
+      }
+
+      .nav-link[data-active="true"] {
+        background: color-mix(in srgb, var(--primary) 14%, white);
+        color: color-mix(in srgb, var(--primary-dark) 75%, black);
+        font-weight: 620;
+      }
+
+      .method-badge {
+        border-radius: 999px;
+        padding: 0.11rem 0.45rem;
+        font-size: 0.67rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+      }
+
+      .method-get {
+        background: #dcfce7;
+        color: #166534;
+      }
+
+      .method-post {
+        background: #dbeafe;
+        color: #1e40af;
+      }
+
+      .method-put {
+        background: #fef3c7;
+        color: #92400e;
+      }
+
+      .method-patch {
+        background: #ede9fe;
+        color: #6d28d9;
+      }
+
+      .method-delete {
+        background: #fee2e2;
+        color: #b91c1c;
+      }
+
+      .footer-socials {
+        margin-top: 1rem;
+        padding: 0.75rem 0.55rem 0;
+        border-top: 1px solid var(--border);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+      }
+
+      .social-pill {
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 0.24rem 0.55rem;
+        color: #4b5563;
+        font-size: 0.8rem;
+      }
+
+      .content-wrap {
+        min-width: 0;
       }
 
       article {
         background: var(--surface);
         border: 1px solid var(--border);
-        border-radius: 0.75rem;
-        padding: 1.5rem;
+        border-radius: 18px;
+        padding: 1.55rem 1.7rem;
+        max-width: 920px;
       }
 
-      pre {
+      article :global(h1) {
+        margin: 0 0 0.8rem;
+        font-size: clamp(2rem, 2.4vw, 2.6rem);
+        letter-spacing: -0.03em;
+      }
+
+      article :global(h2) {
+        margin-top: 2.05rem;
+        margin-bottom: 0.75rem;
+        letter-spacing: -0.02em;
+      }
+
+      article :global(h3) {
+        margin-top: 1.35rem;
+        margin-bottom: 0.45rem;
+      }
+
+      article :global(p),
+      article :global(li) {
+        color: #333843;
+        line-height: 1.72;
+        font-size: 1.04rem;
+      }
+
+      article :global(a) {
+        color: var(--primary-dark);
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+
+      article :global(pre) {
+        background: #0f172a;
+        color: #dbeafe;
+        padding: 0.95rem;
+        border-radius: 12px;
         overflow: auto;
-        background: #0b1220;
-        color: #e2e8f0;
-        border-radius: 0.5rem;
-        padding: 1rem;
       }
 
-      code {
+      article :global(code) {
         font-family: "JetBrains Mono", "SF Mono", monospace;
       }
 
+      .toc {
+        position: sticky;
+        top: 132px;
+        max-height: calc(100vh - 150px);
+        overflow: auto;
+        border-left: 1px solid var(--border);
+        padding-left: 1rem;
+      }
+
+      .toc h4 {
+        margin: 0 0 0.7rem;
+        font-size: 0.92rem;
+        color: #1f2937;
+      }
+
+      .toc nav {
+        display: grid;
+        gap: 0.38rem;
+      }
+
+      .toc nav a {
+        color: #6b7280;
+        font-size: 0.9rem;
+      }
+
+      .toc nav a[data-level="3"] {
+        margin-left: 0.7rem;
+      }
+
+      .toc nav a:hover {
+        color: var(--primary-dark);
+      }
+
+      @media (max-width: 1240px) {
+        .shell {
+          grid-template-columns: minmax(220px, 290px) minmax(0, 1fr);
+        }
+
+        .toc {
+          display: none;
+        }
+      }
+
       @media (max-width: 900px) {
+        .topbar {
+          grid-template-columns: 1fr;
+          gap: 0.45rem;
+          height: auto;
+          padding: 0.8rem 1rem;
+        }
+
+        .search-shell {
+          max-width: none;
+          justify-self: stretch;
+        }
+
+        .topbar-actions {
+          width: 100%;
+          justify-content: flex-end;
+        }
+
+        .tabs {
+          top: 0;
+          overflow: auto;
+          white-space: nowrap;
+          padding: 0 1rem;
+        }
+
         .shell {
           grid-template-columns: 1fr;
+          padding: 1rem;
         }
 
-        nav {
+        .sidebar {
           position: static;
           max-height: none;
-          border-right: 0;
-          border-bottom: 1px solid var(--border);
+          padding: 0;
         }
 
-        main {
-          padding: 1rem;
+        article {
+          padding: 1.1rem;
+          border-radius: 14px;
         }
       }
     </style>
   </head>
-  <body>
+  <body style={themeVarStyle}>
+    <header class="topbar">
+      <div class="brand">
+        <a href={resolveLink(logoHref)} class="brand-logo" aria-label="Homepage">
+          {logoLight ? <img src={resolveLink(logoLight)} alt={site.name} /> : "🛡"}
+        </a>
+        <a href={withBase("index")} class="brand-name">{site.name ?? "sparkify"}</a>
+      </div>
+      <div class="search-shell">
+        <div class="search-input">
+          <span>Search...</span>
+          <span class="search-key">⌘K</span>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        {(site.topbarLinks ?? []).map((link) => (
+          <a class="topbar-link" href={resolveLink(link.url)}>{link.name}</a>
+        ))}
+        {site.topbarCtaButton ? (
+          <a class="cta" href={resolveLink(site.topbarCtaButton.url)}>
+            {site.topbarCtaButton.name}
+          </a>
+        ) : null}
+      </div>
+    </header>
+
+    <nav class="tabs">
+      {tabs.map((tab) => (
+        <a class="tab-link" href={resolveLink(tab.url)} data-active={isCurrentPathActive(tab.url) ? "true" : "false"}>
+          {tab.name}
+        </a>
+      ))}
+    </nav>
+
     <div class="shell">
-      <nav>
-        <h2>sparkify</h2>
+      <aside class="sidebar">
+        {(site.anchors ?? []).map((anchor) => (
+          <a href={resolveLink(anchor.url)} class="sidebar-anchor">
+            <span class="anchor-dot"></span>
+            {anchor.name}
+          </a>
+        ))}
+
         {nav.groups.map((group) => (
-          <section>
+          <section class="nav-group">
             <h3>{group.group}</h3>
-            <ul>
+            <ul class="nav-list">
               {group.links.map((link) => (
                 <li>
-                  <a href={withBase(link.href)} data-active={link.path === currentPath ? "true" : "false"}>
-                    {link.title}
+                  <a class="nav-link" href={withBase(link.href)} data-active={link.path === currentPath ? "true" : "false"}>
+                    <span>{link.title}</span>
+                    {link.methodBadge ? (
+                      <span class={`method-badge method-${link.methodBadge.toLowerCase()}`}>{link.methodBadge}</span>
+                    ) : null}
                   </a>
                 </li>
               ))}
             </ul>
           </section>
         ))}
-      </nav>
-      <main>
+
+        {site.footerSocials ? (
+          <div class="footer-socials">
+            {Object.entries(site.footerSocials).map(([name, href]) => (
+              <a class="social-pill" href={resolveLink(href)}>{name}</a>
+            ))}
+          </div>
+        ) : null}
+      </aside>
+
+      <main class="content-wrap">
         <article>
           <slot />
         </article>
       </main>
+
+      <aside class="toc">
+        <h4>On this page</h4>
+        <nav id="sparkify-toc"></nav>
+      </aside>
     </div>
+
+    <script>
+      const tocRoot = document.getElementById("sparkify-toc");
+      const article = document.querySelector("article");
+
+      if (tocRoot && article) {
+        const slug = (value) =>
+          value
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, "");
+
+        const headings = [...article.querySelectorAll("h2, h3")];
+        for (const heading of headings) {
+          if (!heading.id) {
+            heading.id = slug(heading.textContent || "");
+          }
+        }
+
+        if (headings.length === 0) {
+          tocRoot.innerHTML = "<span style='color:#9ca3af;font-size:0.88rem'>No sections</span>";
+        } else {
+          tocRoot.innerHTML = headings
+            .map(
+              (heading) =>
+                `<a href="#${heading.id}" data-level="${heading.tagName === "H3" ? "3" : "2"}">${heading.textContent || ""}</a>`
+            )
+            .join("");
+        }
+      }
+    </script>
   </body>
 </html>

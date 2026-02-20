@@ -1,6 +1,9 @@
 export type PlaygroundProvider = "stoplight";
 
 export type OAuth2BrowserFlow = "authorizationCodePkce" | "deviceCode";
+export type DocsConfigSourceType = "docs.json" | "mint.json" | "generated";
+export type ApiMode = "endpoint-pages" | "single-page";
+export type RendererEngine = "mintlify-astro" | "legacy";
 
 export interface OpenApiConfigEntry {
   id: string;
@@ -19,6 +22,22 @@ export interface FastApiConfig {
   pythonPath?: string;
 }
 
+export interface CompatConfig {
+  allowMintJson: boolean;
+  preferDocsJson: boolean;
+}
+
+export interface ApiConfig {
+  mode: ApiMode;
+  generateMissingEndpointPages: boolean;
+  apiRoot: string;
+}
+
+export interface RendererConfig {
+  engine: RendererEngine;
+  fallbackLegacyRenderer: boolean;
+}
+
 export interface SparkifyConfigV1 {
   docsDir: string;
   outDir: string;
@@ -30,6 +49,9 @@ export interface SparkifyConfigV1 {
   dirTitleMap: Record<string, string>;
   openapi: OpenApiConfigEntry[];
   fastapi?: FastApiConfig;
+  compat: CompatConfig;
+  api: ApiConfig;
+  renderer: RendererConfig;
   playground: {
     provider: PlaygroundProvider;
     tryItCorsProxy?: string;
@@ -47,11 +69,15 @@ export interface SparkifyConfigV1 {
   };
 }
 
-export interface ConfigOverrides extends Partial<Omit<SparkifyConfigV1, "openapi" | "playground" | "fastapi">> {
+export interface ConfigOverrides
+  extends Partial<Omit<SparkifyConfigV1, "openapi" | "playground" | "fastapi" | "compat" | "api" | "renderer">> {
   configPath?: string;
   openapi?: OpenApiConfigEntry[];
   fastapi?: Partial<FastApiConfig>;
   playground?: Partial<SparkifyConfigV1["playground"]>;
+  compat?: Partial<CompatConfig>;
+  api?: Partial<ApiConfig>;
+  renderer?: Partial<RendererConfig>;
 }
 
 export type DocsNavigationItem = string | DocsNavigationGroup;
@@ -62,14 +88,72 @@ export interface DocsNavigationGroup {
   openapi?: string;
 }
 
+export interface DocsColorAnchors {
+  from?: string;
+  to?: string;
+}
+
+export interface DocsColors {
+  primary?: string;
+  light?: string;
+  dark?: string;
+  anchors?: DocsColorAnchors;
+}
+
+export interface DocsLogo {
+  light?: string;
+  dark?: string;
+  href?: string;
+}
+
+export interface DocsTopbarLink {
+  name: string;
+  url: string;
+}
+
+export interface DocsTopbarCtaButton {
+  name: string;
+  url: string;
+}
+
+export interface DocsTab {
+  name: string;
+  url: string;
+}
+
+export interface DocsAnchor {
+  name: string;
+  icon?: string;
+  url?: string;
+}
+
+export type DocsFooterSocials = Record<string, string>;
+
 export interface DocsJson {
   $schema?: string;
   theme: string;
   name: string;
-  colors?: {
-    primary?: string;
-  };
+  logo?: string | DocsLogo;
+  favicon?: string;
+  colors?: DocsColors;
+  topbarLinks?: DocsTopbarLink[];
+  topbarCtaButton?: DocsTopbarCtaButton;
+  tabs?: DocsTab[];
+  anchors?: DocsAnchor[];
+  footerSocials?: DocsFooterSocials;
   navigation: DocsNavigationGroup[];
+  configSource?: DocsConfigSourceType;
+  configPath?: string;
+  warnings?: string[];
+  unknownFields?: string[];
+}
+
+export interface DocsConfigLoadResult {
+  config: DocsJson | null;
+  source: DocsConfigSourceType;
+  sourcePath?: string;
+  warnings: string[];
+  unknownFields: string[];
 }
 
 export interface WorkspacePage {
@@ -77,6 +161,18 @@ export interface WorkspacePage {
   relativePath: string;
   pagePath: string;
   title: string;
+  generated?: boolean;
+  methodBadge?: string;
+}
+
+export interface OpenApiOperation {
+  id: string;
+  method: string;
+  path: string;
+  summary: string;
+  description?: string;
+  tag: string;
+  pagePath: string;
 }
 
 export interface OpenApiBundle {
@@ -86,6 +182,7 @@ export interface OpenApiBundle {
   title: string;
   outputAbsolutePath: string;
   operations: number;
+  operationPages: OpenApiOperation[];
   serverUrl?: string;
 }
 
@@ -93,6 +190,9 @@ export interface PreparedWorkspace {
   rootDir: string;
   docsDir: string;
   docsJson: DocsJson;
+  docsConfigSource: DocsConfigSourceType;
+  docsConfigPath?: string;
+  docsConfigWarnings: string[];
   pages: WorkspacePage[];
   openapiBundles: OpenApiBundle[];
 }

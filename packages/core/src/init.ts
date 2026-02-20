@@ -51,7 +51,7 @@ function defaultConfigFile(options: InitOptions): string {
       {
         id: "api",
         source: options.withOpenApi,
-        route: "/api",
+        route: "/api-reference",
         title: "API Reference"
       }
     ];
@@ -122,7 +122,7 @@ export function configFromInitOptions(options: InitOptions): SparkifyConfigV1 {
           {
             id: "api",
             source: options.withOpenApi,
-            route: "/api",
+            route: "/api-reference",
             title: "API Reference"
           }
         ]
@@ -133,6 +133,19 @@ export function configFromInitOptions(options: InitOptions): SparkifyConfigV1 {
           exportPath: path.join(options.docsDir, "openapi.json")
         }
       : undefined,
+    compat: {
+      allowMintJson: true,
+      preferDocsJson: true
+    },
+    api: {
+      mode: "endpoint-pages",
+      generateMissingEndpointPages: true,
+      apiRoot: "/api-reference"
+    },
+    renderer: {
+      engine: "mintlify-astro",
+      fallbackLegacyRenderer: true
+    },
     playground: {
       provider: "stoplight",
       auth: {

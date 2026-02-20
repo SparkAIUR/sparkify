@@ -4,6 +4,11 @@
 
 It provides an `mkdocs`-style workflow while keeping Mintlify authoring conventions (`docs.json`, `.mdx`, static assets) and adds a FastAPI/OpenAPI happy path.
 
+Config discovery precedence is:
+1. `docs.json`
+2. `mint.json`
+3. generated fallback
+
 ## Status
 
 MVP implementation is in place for:
@@ -46,14 +51,33 @@ Minimal example:
   "docsDir": "./docs",
   "outDir": "./dist",
   "base": "/my-repo",
+  "api": {
+    "mode": "endpoint-pages",
+    "apiRoot": "/api-reference"
+  },
   "openapi": [
     {
       "id": "api",
       "source": "./docs/openapi.json",
-      "route": "/api",
+      "route": "/api-reference",
       "title": "API Reference"
     }
   ]
+}
+```
+
+Compatibility toggles:
+
+```json
+{
+  "compat": {
+    "allowMintJson": true,
+    "preferDocsJson": true
+  },
+  "renderer": {
+    "engine": "mintlify-astro",
+    "fallbackLegacyRenderer": true
+  }
 }
 ```
 

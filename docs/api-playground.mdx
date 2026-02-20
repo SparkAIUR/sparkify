@@ -7,6 +7,9 @@ description: "Interactive OpenAPI reference and Try It behavior in static docs."
 
 `sparkify` v0.1.0 uses Stoplight Elements for interactive API pages.
 
+Default API model is endpoint pages under `/api-reference/*` with a generated API intro.
+Single-page playground mode remains available via `api.mode: "single-page"`.
+
 ## Support
 
 - API key auth
@@ -27,6 +30,10 @@ On GitHub Pages, Try It requests are browser-side:
 
 ```json
 {
+  "api": {
+    "mode": "endpoint-pages",
+    "apiRoot": "/api-reference"
+  },
   "playground": {
     "provider": "stoplight",
     "tryItCorsProxy": ""

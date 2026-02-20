@@ -1,9 +1,9 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { loadDocsJson } from "./docs-json.js";
+import { loadDocsConfig } from "./docs-json.js";
 import { resolveOpenApiBundles } from "./openapi.js";
-import type { DoctorReport, SparkifyConfigV1 } from "./types.js";
+import type { DocsJson, DoctorReport, SparkifyConfigV1 } from "./types.js";
 
 function validateNodeVersion(report: DoctorReport): void {
   const major = Number.parseInt(process.versions.node.split(".")[0] ?? "0", 10);
@@ -14,31 +14,50 @@ function validateNodeVersion(report: DoctorReport): void {
   }
 }
 
-async function validateDocsDir(config: SparkifyConfigV1, report: DoctorReport): Promise<void> {
+async function validateDocsDir(
+  config: SparkifyConfigV1,
+  report: DoctorReport
+): Promise<DocsJson | null> {
   try {
     const stat = await fs.stat(config.docsDir);
     if (!stat.isDirectory()) {
       report.errors.push(`docsDir '${config.docsDir}' is not a directory.`);
-      return;
+      return null;
     }
     report.info.push(`docsDir found: ${config.docsDir}`);
   } catch {
     report.errors.push(`docsDir '${config.docsDir}' does not exist.`);
-    return;
+    return null;
   }
 
-  const docsJson = await loadDocsJson(config.docsDir);
-  if (docsJson) {
-    report.info.push("docs.json found and parsed successfully.");
-  } else if (config.autoNav) {
-    report.warnings.push("docs.json missing. It will be auto-generated during build.");
-  } else {
-    report.errors.push("docs.json missing and autoNav=false.");
+  const discovered = await loadDocsConfig(config.docsDir, {
+    preferDocsJson: config.compat.preferDocsJson,
+    allowMintJson: config.compat.allowMintJson
+  });
+
+  if (discovered.config) {
+    const sourcePath = discovered.sourcePath ? ` (${discovered.sourcePath})` : "";
+    report.info.push(`Docs config source: ${discovered.source}${sourcePath}`);
+    for (const warning of discovered.warnings) {
+      report.warnings.push(`Docs config: ${warning}`);
+    }
+    for (const field of discovered.unknownFields) {
+      report.warnings.push(`Unsupported docs config field '${field}' will be ignored.`);
+    }
+    return discovered.config;
   }
+
+  if (config.autoNav) {
+    report.warnings.push("No docs.json or mint.json found. docs config will be auto-generated during build.");
+    return null;
+  }
+
+  report.errors.push("No docs.json or mint.json found and autoNav=false.");
+  return null;
 }
 
-async function validateOpenApi(config: SparkifyConfigV1, report: DoctorReport): Promise<void> {
-  const docsJson = (await loadDocsJson(config.docsDir)) ?? {
+async function validateOpenApi(config: SparkifyConfigV1, docsJson: DocsJson | null, report: DoctorReport): Promise<void> {
+  const effectiveDocsJson: DocsJson = docsJson ?? {
     theme: "mint",
     name: "sparkify",
     navigation: []
@@ -46,11 +65,13 @@ async function validateOpenApi(config: SparkifyConfigV1, report: DoctorReport): 
 
   try {
     const bundles = await resolveOpenApiBundles({
-      docsJson,
+      docsJson: effectiveDocsJson,
       workspaceDir: path.join(config.docsDir, ".sparkify-doctor"),
       docsDir: config.docsDir,
       entries: config.openapi,
-      configuredServerUrl: config.playground.serverUrl
+      configuredServerUrl: config.playground.serverUrl,
+      apiMode: config.api.mode,
+      apiRoot: config.api.apiRoot
     });
 
     if (bundles.length === 0) {
@@ -59,7 +80,9 @@ async function validateOpenApi(config: SparkifyConfigV1, report: DoctorReport): 
     }
 
     for (const bundle of bundles) {
-      report.info.push(`OpenAPI '${bundle.id}' validated (${bundle.operations} operations).`);
+      report.info.push(
+        `OpenAPI '${bundle.id}' validated (${bundle.operations} operations, ${bundle.operationPages.length} endpoint pages).`
+      );
     }
 
     await fs.rm(path.join(config.docsDir, ".sparkify-doctor"), { recursive: true, force: true });
@@ -95,9 +118,13 @@ export async function runDoctor(config: SparkifyConfigV1): Promise<DoctorReport>
   };
 
   validateNodeVersion(report);
-  await validateDocsDir(config, report);
+  report.info.push(`API mode: ${config.api.mode} (root: ${config.api.apiRoot})`);
+  report.info.push(`Renderer: ${config.renderer.engine}`);
+
+  const docsJson = await validateDocsDir(config, report);
   validatePython(config, report);
-  await validateOpenApi(config, report);
+  await validateOpenApi(config, docsJson, report);
 
   return report;
 }
+

@@ -1,0 +1,58 @@
+---
+interface Props {
+  body?: string;
+  name?: string;
+  type?: string;
+  required?: boolean;
+}
+
+const { name, type, required, body } = Astro.props;
+---
+
+<div class="sf-param-field">
+  <div class="sf-param-header">
+    <code>{name ?? "param"}</code>
+    {type ? <span class="sf-type">{type}</span> : null}
+    {required ? <span class="sf-required">required</span> : null}
+  </div>
+  <div class="sf-param-body"><slot />{body ? <p>{body}</p> : null}</div>
+</div>
+
+<style>
+  .sf-param-field {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 0.75rem;
+    background: #fff;
+    margin: 0.7rem 0;
+  }
+
+  .sf-param-header {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.45rem;
+  }
+
+  .sf-type {
+    font-size: 0.78rem;
+    color: #475569;
+    background: #f1f5f9;
+    border-radius: 999px;
+    padding: 0.08rem 0.4rem;
+  }
+
+  .sf-required {
+    font-size: 0.72rem;
+    color: #7f1d1d;
+    background: #fee2e2;
+    border-radius: 999px;
+    padding: 0.08rem 0.38rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .sf-param-body :global(p:last-child) {
+    margin-bottom: 0;
+  }
+</style>

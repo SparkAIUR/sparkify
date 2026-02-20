@@ -25,6 +25,8 @@ describe("resolveOpenApiBundles", () => {
 
     expect(bundles.length).toBeGreaterThan(0);
     expect(bundles[0]?.operations).toBe(1);
+    expect(bundles[0]?.operationPages.length).toBe(1);
+    expect(bundles[0]?.route).toBe("/api-reference");
     await fs.access(bundles[0]!.outputAbsolutePath);
   });
 });

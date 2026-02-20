@@ -1,0 +1,48 @@
+---
+interface Props {
+  title?: string;
+  icon?: string;
+  href?: string;
+}
+
+const { title, icon, href } = Astro.props;
+const Wrapper = href ? "a" : "div";
+---
+
+<Wrapper class="sf-card" href={href}>
+  {icon ? <div class="sf-card-icon" aria-hidden="true">{icon}</div> : null}
+  {title ? <h3>{title}</h3> : null}
+  <div class="sf-card-content"><slot /></div>
+</Wrapper>
+
+<style>
+  .sf-card {
+    display: block;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 1rem;
+    background: #fff;
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .sf-card:hover {
+    border-color: #d1d5db;
+    box-shadow: 0 4px 18px rgba(2, 6, 23, 0.04);
+  }
+
+  .sf-card h3 {
+    margin: 0 0 0.5rem;
+    font-size: 1.05rem;
+  }
+
+  .sf-card-icon {
+    color: #7c3aed;
+    margin-bottom: 0.45rem;
+    font-weight: 650;
+  }
+
+  .sf-card-content :global(p:last-child) {
+    margin-bottom: 0;
+  }
+</style>

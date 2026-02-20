@@ -3,12 +3,14 @@ import path from "node:path";
 import { createRequire } from "node:module";
 import fg from "fast-glob";
 import { buildStoplightAstroPage } from "@sparkify/playground-stoplight";
+import { ExitCode, SparkifyError } from "./errors.js";
 import type { DocsJson, OpenApiBundle, PreparedWorkspace, SparkifyConfigV1, WorkspacePage } from "./types.js";
 
 interface NavLink {
   title: string;
   path: string;
   href: string;
+  methodBadge?: string;
 }
 
 interface NavGroup {
@@ -16,9 +18,52 @@ interface NavGroup {
   links: NavLink[];
 }
 
+interface SiteChrome {
+  name: string;
+  logo?: DocsJson["logo"];
+  favicon?: string;
+  colors?: DocsJson["colors"];
+  topbarLinks?: DocsJson["topbarLinks"];
+  topbarCtaButton?: DocsJson["topbarCtaButton"];
+  tabs?: DocsJson["tabs"];
+  anchors?: DocsJson["anchors"];
+  footerSocials?: DocsJson["footerSocials"];
+}
+
 interface NavigationModel {
+  site: SiteChrome;
   groups: NavGroup[];
 }
+
+const SUPPORTED_MDX_COMPONENTS = new Set([
+  "Alert",
+  "AlertDescription",
+  "AlertTitle",
+  "Badge",
+  "Cards",
+  "Card",
+  "CardGroup",
+  "Steps",
+  "Step",
+  "CodeGroup",
+  "Tabs",
+  "Tab",
+  "Accordion",
+  "AccordionGroup",
+  "Expandable",
+  "Frame",
+  "ParamField",
+  "ResponseField",
+  "Info",
+  "Tip",
+  "Warning",
+  "Note",
+  "Table"
+]);
+
+const CODE_FENCE_LANGUAGE_ALIASES: Record<string, string> = {
+  env: "bash"
+};
 
 function toTitleCase(value: string): string {
   return value
@@ -55,12 +100,117 @@ function isOperationReference(value: string): boolean {
   return /^(GET|POST|PUT|PATCH|DELETE|OPTIONS|HEAD)\s+\/.+/i.test(value.trim());
 }
 
+function normalizeCodeFenceLanguages(content: string): string {
+  return content.replace(/```([a-zA-Z0-9_-]+)([^\n]*)\n/g, (match, rawLanguage: string, suffix: string) => {
+    const alias = CODE_FENCE_LANGUAGE_ALIASES[rawLanguage.toLowerCase()];
+    if (!alias) {
+      return match;
+    }
+    return `\`\`\`${alias}${suffix}\n`;
+  });
+}
+
+function escapeTemplateBraces(content: string): string {
+  const chunks = content.split(/(```[\s\S]*?```)/g);
+  return chunks
+    .map((chunk, index) => {
+      if (index % 2 === 1) {
+        return chunk;
+      }
+
+      return chunk.replace(/(?<![=\\])\{([A-Za-z0-9_.-]+)\}/g, "\\{$1\\}");
+    })
+    .join("");
+}
+
+function parseImportedNames(content: string): Set<string> {
+  const names = new Set<string>();
+  const importRegex = /^import\s+(.+?)\s+from\s+["'][^"']+["'];?$/gm;
+  for (const match of content.matchAll(importRegex)) {
+    const clause = match[1]?.trim();
+    if (!clause) {
+      continue;
+    }
+
+    if (clause.startsWith("{") && clause.endsWith("}")) {
+      const chunks = clause
+        .slice(1, -1)
+        .split(",")
+        .map((chunk) => chunk.trim())
+        .filter(Boolean);
+      for (const chunk of chunks) {
+        const alias = chunk.split(/\s+as\s+/i).at(-1)?.trim();
+        if (alias) {
+          names.add(alias);
+        }
+      }
+      continue;
+    }
+
+    if (clause.includes("{")) {
+      const [defaultPart, namedPart] = clause.split("{");
+      const defaultImport = defaultPart.replace(/,/g, "").trim();
+      if (defaultImport) {
+        names.add(defaultImport);
+      }
+      const namedImports = namedPart.replace(/}/g, "");
+      for (const chunk of namedImports.split(",").map((item) => item.trim()).filter(Boolean)) {
+        const alias = chunk.split(/\s+as\s+/i).at(-1)?.trim();
+        if (alias) {
+          names.add(alias);
+        }
+      }
+      continue;
+    }
+
+    const defaultImport = clause.replace(/,/g, "").trim();
+    if (defaultImport && !defaultImport.startsWith("*")) {
+      names.add(defaultImport);
+    }
+  }
+
+  return names;
+}
+
+function stripCodeFences(content: string): string {
+  return content.replace(/```[\s\S]*?```/g, "");
+}
+
+function validateMdxComponents(content: string, sourceFile: string): void {
+  const importedNames = parseImportedNames(content);
+  const searchable = stripCodeFences(content);
+  const usedNames = new Set<string>();
+
+  const tagRegex = /<([A-Z][A-Za-z0-9_]*)\b/g;
+  for (const match of searchable.matchAll(tagRegex)) {
+    const componentName = match[1];
+    if (!componentName) {
+      continue;
+    }
+    usedNames.add(componentName);
+  }
+
+  const unsupported = [...usedNames].filter(
+    (name) => !SUPPORTED_MDX_COMPONENTS.has(name) && !importedNames.has(name)
+  );
+
+  if (unsupported.length > 0) {
+    throw new SparkifyError(
+      `Unsupported MDX component(s) in ${sourceFile}: ${unsupported.join(", ")}`,
+      ExitCode.InvalidDocsJson
+    );
+  }
+}
+
 function buildNavigation(
   docsJson: DocsJson,
   pages: WorkspacePage[],
   openapiBundles: OpenApiBundle[]
 ): NavigationModel {
   const titleMap = new Map<string, string>(pages.map((page) => [page.pagePath, page.title]));
+  const methodBadgeMap = new Map<string, string>(
+    pages.filter((page) => page.methodBadge).map((page) => [page.pagePath, page.methodBadge as string])
+  );
   const routeSet = new Map<string, string>();
 
   for (const page of pages) {
@@ -94,7 +244,8 @@ function buildNavigation(
         links.push({
           title: titleMap.get(item) ?? toTitleCase(item.split("/").at(-1) ?? item),
           path: item,
-          href
+          href,
+          methodBadge: methodBadgeMap.get(item)
         });
         continue;
       }
@@ -145,7 +296,20 @@ function buildNavigation(
     });
   }
 
-  return { groups };
+  return {
+    site: {
+      name: docsJson.name,
+      logo: docsJson.logo,
+      favicon: docsJson.favicon,
+      colors: docsJson.colors,
+      topbarLinks: docsJson.topbarLinks,
+      topbarCtaButton: docsJson.topbarCtaButton,
+      tabs: docsJson.tabs,
+      anchors: docsJson.anchors,
+      footerSocials: docsJson.footerSocials
+    },
+    groups
+  };
 }
 
 function renderMdxWrapperPage(params: {
@@ -154,21 +318,23 @@ function renderMdxWrapperPage(params: {
   layoutImport: string;
   navImport: string;
   mdxImport: string;
+  mdxComponentsImport: string;
 }): string {
   return `---
 import DocsLayout from "${params.layoutImport}";
 import nav from "${params.navImport}";
+import mdxComponents from "${params.mdxComponentsImport}";
 import Content from "${params.mdxImport}";
 const currentPath = ${JSON.stringify(params.currentPath)};
 ---
 <DocsLayout title=${JSON.stringify(params.title)} nav={nav} currentPath={currentPath}>
-  <Content />
+  <Content components={mdxComponents} />
 </DocsLayout>
 `;
 }
 
 async function copyAssets(docsDir: string, publicDir: string): Promise<void> {
-  const files = await fg(["**/*", "!**/*.mdx", "!docs.json"], {
+  const files = await fg(["**/*", "!**/*.mdx", "!docs.json", "!mint.json"], {
     cwd: docsDir,
     dot: false,
     onlyFiles: true
@@ -223,7 +389,13 @@ export async function generateAstroProject(
   for (const page of workspace.pages) {
     const destinationMdxPath = path.join(generatedPagesRoot, page.relativePath);
     await fs.mkdir(path.dirname(destinationMdxPath), { recursive: true });
-    await fs.copyFile(page.sourceAbsolutePath, destinationMdxPath);
+    const mdxContent = await fs.readFile(page.sourceAbsolutePath, "utf8");
+    validateMdxComponents(mdxContent, page.relativePath);
+    await fs.writeFile(
+      destinationMdxPath,
+      normalizeCodeFenceLanguages(escapeTemplateBraces(mdxContent)),
+      "utf8"
+    );
 
     const routePath = page.pagePath;
     const routeFilePath = toRouteFilePath(pagesRoot, routePath);
@@ -232,6 +404,10 @@ export async function generateAstroProject(
     const layoutImport = path.relative(path.dirname(routeFilePath), path.join(projectRoot, "src/layouts/DocsLayout.astro"));
     const navImport = path.relative(path.dirname(routeFilePath), path.join(projectRoot, "src/generated/navigation.json"));
     const mdxImport = path.relative(path.dirname(routeFilePath), destinationMdxPath);
+    const mdxComponentsImport = path.relative(
+      path.dirname(routeFilePath),
+      path.join(projectRoot, "src/components/mdx-components.ts")
+    );
 
     await fs.writeFile(
       routeFilePath,
@@ -240,7 +416,8 @@ export async function generateAstroProject(
         currentPath: routePath,
         layoutImport: layoutImport.startsWith(".") ? layoutImport : `./${layoutImport}`,
         navImport: navImport.startsWith(".") ? navImport : `./${navImport}`,
-        mdxImport: mdxImport.startsWith(".") ? mdxImport : `./${mdxImport}`
+        mdxImport: mdxImport.startsWith(".") ? mdxImport : `./${mdxImport}`,
+        mdxComponentsImport: mdxComponentsImport.startsWith(".") ? mdxComponentsImport : `./${mdxComponentsImport}`
       }),
       "utf8"
     );
@@ -249,7 +426,8 @@ export async function generateAstroProject(
   for (const bundle of workspace.openapiBundles) {
     const routePath = bundle.route.replace(/^\//, "");
     const routeFilePath = path.join(pagesRoot, `${routePath}.astro`);
-    const outputBundlePath = path.join(generatedOpenApiRoot, `${bundle.id}.json`);
+    const specFilename = path.basename(bundle.outputAbsolutePath);
+    const outputBundlePath = path.join(generatedOpenApiRoot, specFilename);
     await fs.mkdir(path.dirname(routeFilePath), { recursive: true });
 
     await fs.copyFile(bundle.outputAbsolutePath, outputBundlePath);
@@ -261,7 +439,7 @@ export async function generateAstroProject(
       routeFilePath,
       buildStoplightAstroPage({
         title: bundle.title,
-        specUrl: `/openapi/${bundle.id}.json`,
+        specUrl: `/openapi/${specFilename}`,
         proxyUrl: config.playground.tryItCorsProxy,
         serverUrl: bundle.serverUrl,
         currentPath: routePath,

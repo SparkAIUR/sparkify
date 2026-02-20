@@ -37,4 +37,36 @@ describe("resolveConfig", () => {
     expect(config.base).toBe("/from-flag");
     expect(config.openapi[0]?.source).toBe(path.join(cwd, "docs/openapi.json"));
   });
+
+  it("does not clobber config file values with undefined overrides", async () => {
+    const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "sparkify-config-undefined-test-"));
+    await fs.mkdir(path.join(cwd, "docs"), { recursive: true });
+
+    await fs.writeFile(
+      path.join(cwd, "sparkify.config.json"),
+      JSON.stringify(
+        {
+          docsDir: "./docs",
+          outDir: "./site",
+          base: "/from-file"
+        },
+        null,
+        2
+      ),
+      "utf8"
+    );
+
+    const config = await resolveConfig({
+      cwd,
+      overrides: {
+        docsDir: undefined,
+        outDir: undefined,
+        base: undefined
+      }
+    });
+
+    expect(config.docsDir).toBe(path.join(cwd, "docs"));
+    expect(config.outDir).toBe(path.join(cwd, "site"));
+    expect(config.base).toBe("/from-file");
+  });
 });

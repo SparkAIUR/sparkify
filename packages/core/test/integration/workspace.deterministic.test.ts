@@ -30,6 +30,19 @@ describe("prepareWorkspace", () => {
       exclude: [],
       dirTitleMap: {},
       openapi: [],
+      compat: {
+        allowMintJson: true,
+        preferDocsJson: true
+      },
+      api: {
+        mode: "endpoint-pages",
+        generateMissingEndpointPages: true,
+        apiRoot: "/api-reference"
+      },
+      renderer: {
+        engine: "mintlify-astro",
+        fallbackLegacyRenderer: true
+      },
       playground: {
         provider: "stoplight",
         auth: {

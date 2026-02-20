@@ -133,6 +133,13 @@ export async function buildSite(config: SparkifyConfigV1, options: BuildOptions 
   const workspace = await prepareWorkspace(config, { mode: "build", debug: options.debug });
 
   try {
+    logger.info(
+      `Using docs config source: ${workspace.docsConfigSource}${workspace.docsConfigPath ? ` (${workspace.docsConfigPath})` : ""}`
+    );
+    for (const warning of workspace.docsConfigWarnings) {
+      logger.info(`Config compatibility warning: ${warning}`);
+    }
+
     const project = await generateAstroProject(workspace, config);
 
     logger.info(`Building site with Astro from ${project.projectRoot}`);
@@ -179,6 +186,12 @@ export async function startDevServer(config: SparkifyConfigV1, options: DevOptio
     state.workspaceRoot = workspace.rootDir;
     state.projectRoot = project.projectRoot;
 
+    logger.info(
+      `Using docs config source: ${workspace.docsConfigSource}${workspace.docsConfigPath ? ` (${workspace.docsConfigPath})` : ""}`
+    );
+    for (const warning of workspace.docsConfigWarnings) {
+      logger.info(`Config compatibility warning: ${warning}`);
+    }
     logger.info(`Starting dev server on port ${options.port}`);
 
     state.child = spawn(

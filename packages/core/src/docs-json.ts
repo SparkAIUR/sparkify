@@ -4,7 +4,13 @@ import fg from "fast-glob";
 import { minimatch } from "minimatch";
 import { z } from "zod";
 import { ExitCode, SparkifyError } from "./errors.js";
-import type { DocsJson, DocsNavigationGroup, DocsNavigationItem } from "./types.js";
+import type {
+  DocsConfigLoadResult,
+  DocsConfigSourceType,
+  DocsJson,
+  DocsNavigationGroup,
+  DocsNavigationItem
+} from "./types.js";
 
 const docsGroupSchema: z.ZodType<DocsNavigationGroup> = z.lazy(() =>
   z.object({
@@ -14,17 +20,79 @@ const docsGroupSchema: z.ZodType<DocsNavigationGroup> = z.lazy(() =>
   })
 );
 
-const docsJsonSchema = z.object({
-  $schema: z.string().optional(),
-  theme: z.string().min(1),
+const topbarLinkSchema = z.object({
   name: z.string().min(1),
-  colors: z
-    .object({
-      primary: z.string().optional()
-    })
-    .optional(),
-  navigation: z.array(docsGroupSchema)
+  url: z.string().min(1)
 });
+
+const topbarCtaButtonSchema = z.object({
+  name: z.string().min(1),
+  url: z.string().min(1)
+});
+
+const tabSchema = z.object({
+  name: z.string().min(1),
+  url: z.string().min(1)
+});
+
+const anchorSchema = z.object({
+  name: z.string().min(1),
+  icon: z.string().optional(),
+  url: z.string().optional()
+});
+
+const docsConfigSchema = z
+  .object({
+    $schema: z.string().optional(),
+    theme: z.string().optional(),
+    name: z.string().min(1),
+    logo: z
+      .union([
+        z.string(),
+        z.object({
+          light: z.string().optional(),
+          dark: z.string().optional(),
+          href: z.string().optional()
+        })
+      ])
+      .optional(),
+    favicon: z.string().optional(),
+    colors: z
+      .object({
+        primary: z.string().optional(),
+        light: z.string().optional(),
+        dark: z.string().optional(),
+        anchors: z
+          .object({
+            from: z.string().optional(),
+            to: z.string().optional()
+          })
+          .optional()
+      })
+      .optional(),
+    topbarLinks: z.array(topbarLinkSchema).optional(),
+    topbarCtaButton: topbarCtaButtonSchema.optional(),
+    tabs: z.array(tabSchema).optional(),
+    anchors: z.array(anchorSchema).optional(),
+    footerSocials: z.record(z.string(), z.string()).optional(),
+    navigation: z.array(docsGroupSchema).optional()
+  })
+  .passthrough();
+
+const KNOWN_TOP_LEVEL_KEYS = new Set([
+  "$schema",
+  "theme",
+  "name",
+  "logo",
+  "favicon",
+  "colors",
+  "topbarLinks",
+  "topbarCtaButton",
+  "tabs",
+  "anchors",
+  "navigation",
+  "footerSocials"
+]);
 
 function normalizeRelPath(value: string): string {
   return value.split(path.sep).join("/");
@@ -127,52 +195,169 @@ function buildNavigation(pagePaths: string[], dirTitleMap: Record<string, string
   return groups;
 }
 
-function collectPageRefs(items: DocsNavigationItem[] | undefined, output: string[]): void {
-  if (!items) {
-    return;
+function normalizeNavigationPages(
+  value: unknown,
+  warnings: string[]
+): Array<string | DocsNavigationGroup> | undefined {
+  if (!Array.isArray(value)) {
+    if (value !== undefined) {
+      warnings.push("navigation.pages should be an array. Ignoring non-array value.");
+    }
+    return undefined;
   }
 
-  for (const item of items) {
+  const items: Array<string | DocsNavigationGroup> = [];
+  for (const item of value) {
     if (typeof item === "string") {
-      output.push(item);
+      items.push(item);
       continue;
     }
 
-    collectPageRefs(item.pages, output);
-  }
-}
-
-function collectOpenApiRefs(items: DocsNavigationItem[] | undefined, output: Set<string>): void {
-  if (!items) {
-    return;
-  }
-
-  for (const item of items) {
-    if (typeof item !== "string") {
-      if (item.openapi) {
-        output.add(item.openapi);
+    if (item && typeof item === "object") {
+      const normalized = normalizeNavigationGroup(item, warnings);
+      if (normalized) {
+        items.push(normalized);
       }
-      collectOpenApiRefs(item.pages, output);
+      continue;
     }
   }
+
+  return items.length > 0 ? items : undefined;
 }
 
-export async function loadDocsJson(docsDir: string): Promise<DocsJson | null> {
-  const docsJsonPath = path.join(docsDir, "docs.json");
+function normalizeNavigationGroup(value: unknown, warnings: string[]): DocsNavigationGroup | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
 
-  try {
-    const raw = await fs.readFile(docsJsonPath, "utf8");
-    const parsed = JSON.parse(raw);
-    const result = docsJsonSchema.safeParse(parsed);
+  const raw = value as Record<string, unknown>;
+  const group = typeof raw.group === "string" && raw.group.trim() ? raw.group.trim() : "Documentation";
+  const openapi = typeof raw.openapi === "string" && raw.openapi.trim() ? raw.openapi.trim() : undefined;
+  const pages = normalizeNavigationPages(raw.pages, warnings);
 
-    if (!result.success) {
-      throw new SparkifyError(
-        `Invalid docs.json: ${result.error.issues.map((issue) => issue.message).join(", ")}`,
-        ExitCode.InvalidDocsJson
-      );
+  if (!pages && !openapi) {
+    return null;
+  }
+
+  return {
+    group,
+    openapi,
+    pages
+  };
+}
+
+function normalizeNavigation(value: unknown, warnings: string[]): DocsNavigationGroup[] {
+  if (!value) {
+    return [];
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => normalizeNavigationGroup(item, warnings))
+      .filter((group): group is DocsNavigationGroup => Boolean(group));
+  }
+
+  if (value && typeof value === "object") {
+    const obj = value as Record<string, unknown>;
+    if (Array.isArray(obj.groups)) {
+      return obj.groups
+        .map((item) => normalizeNavigationGroup(item, warnings))
+        .filter((group): group is DocsNavigationGroup => Boolean(group));
     }
 
-    return result.data;
+    // Legacy object form: { "Group Name": ["page-a", "page-b"] }
+    const groups: DocsNavigationGroup[] = [];
+    for (const [groupName, entry] of Object.entries(obj)) {
+      if (groupName === "groups") {
+        continue;
+      }
+
+      if (Array.isArray(entry)) {
+        groups.push({
+          group: groupName,
+          pages: entry.filter((item): item is string => typeof item === "string")
+        });
+        continue;
+      }
+
+      if (entry && typeof entry === "object") {
+        const normalized = normalizeNavigationGroup(
+          {
+            group: groupName,
+            ...(entry as Record<string, unknown>)
+          },
+          warnings
+        );
+        if (normalized) {
+          groups.push(normalized);
+        }
+      }
+    }
+    return groups;
+  }
+
+  warnings.push("navigation should be an array/object. Ignoring unsupported navigation value.");
+  return [];
+}
+
+function normalizeDocsConfig(
+  rawValue: unknown,
+  source: DocsConfigSourceType,
+  sourcePath: string
+): DocsConfigLoadResult {
+  if (!rawValue || typeof rawValue !== "object") {
+    throw new SparkifyError(`Invalid ${source} at ${sourcePath}: expected a JSON object.`, ExitCode.InvalidDocsJson);
+  }
+
+  const rawObject = rawValue as Record<string, unknown>;
+  const parse = docsConfigSchema.safeParse(rawObject);
+  if (!parse.success) {
+    throw new SparkifyError(
+      `Invalid ${source} at ${sourcePath}: ${parse.error.issues.map((issue) => issue.message).join(", ")}`,
+      ExitCode.InvalidDocsJson
+    );
+  }
+
+  const warnings: string[] = [];
+  const navigation = normalizeNavigation(rawObject.navigation, warnings);
+  const unknownFields = Object.keys(rawObject).filter((key) => !KNOWN_TOP_LEVEL_KEYS.has(key));
+
+  const docsConfig: DocsJson = {
+    $schema: parse.data.$schema,
+    theme: parse.data.theme ?? "mint",
+    name: parse.data.name,
+    logo: parse.data.logo,
+    favicon: parse.data.favicon,
+    colors: parse.data.colors,
+    topbarLinks: parse.data.topbarLinks,
+    topbarCtaButton: parse.data.topbarCtaButton,
+    tabs: parse.data.tabs,
+    anchors: parse.data.anchors,
+    footerSocials: parse.data.footerSocials,
+    navigation,
+    configSource: source,
+    configPath: sourcePath,
+    warnings,
+    unknownFields
+  };
+
+  return {
+    config: docsConfig,
+    source,
+    sourcePath,
+    warnings,
+    unknownFields
+  };
+}
+
+async function loadJsonConfigAtPath(
+  configPath: string,
+  source: DocsConfigSourceType
+): Promise<DocsConfigLoadResult | null> {
+  try {
+    const raw = await fs.readFile(configPath, "utf8");
+    const parsed = JSON.parse(raw);
+    return normalizeDocsConfig(parsed, source, configPath);
   } catch (error) {
     const err = error as NodeJS.ErrnoException;
     if (err.code === "ENOENT") {
@@ -183,8 +368,62 @@ export async function loadDocsJson(docsDir: string): Promise<DocsJson | null> {
       throw error;
     }
 
-    throw new SparkifyError(`Unable to parse docs.json: ${err.message}`, ExitCode.InvalidDocsJson);
+    if (error instanceof SyntaxError) {
+      throw new SparkifyError(
+        `Unable to parse ${source} at ${configPath}: ${error.message}`,
+        ExitCode.InvalidDocsJson
+      );
+    }
+
+    throw new SparkifyError(
+      `Unable to parse ${source} at ${configPath}: ${err.message}`,
+      ExitCode.InvalidDocsJson
+    );
   }
+}
+
+export interface LoadDocsConfigOptions {
+  preferDocsJson?: boolean;
+  allowMintJson?: boolean;
+}
+
+export async function loadDocsConfig(
+  docsDir: string,
+  options: LoadDocsConfigOptions = {}
+): Promise<DocsConfigLoadResult> {
+  const preferDocsJson = options.preferDocsJson ?? true;
+  const allowMintJson = options.allowMintJson ?? true;
+  const docsJsonPath = path.join(docsDir, "docs.json");
+  const mintJsonPath = path.join(docsDir, "mint.json");
+
+  const tryDocsJson = async (): Promise<DocsConfigLoadResult | null> =>
+    loadJsonConfigAtPath(docsJsonPath, "docs.json");
+  const tryMintJson = async (): Promise<DocsConfigLoadResult | null> => {
+    if (!allowMintJson) {
+      return null;
+    }
+    return loadJsonConfigAtPath(mintJsonPath, "mint.json");
+  };
+
+  const candidates = preferDocsJson ? [tryDocsJson, tryMintJson] : [tryMintJson, tryDocsJson];
+  for (const candidate of candidates) {
+    const result = await candidate();
+    if (result?.config) {
+      return result;
+    }
+  }
+
+  return {
+    config: null,
+    source: "generated",
+    warnings: [],
+    unknownFields: []
+  };
+}
+
+export async function loadDocsJson(docsDir: string): Promise<DocsJson | null> {
+  const result = await loadJsonConfigAtPath(path.join(docsDir, "docs.json"), "docs.json");
+  return result?.config ?? null;
 }
 
 export interface GenerateDocsJsonOptions {
@@ -192,6 +431,7 @@ export interface GenerateDocsJsonOptions {
   excludePatterns: string[];
   dirTitleMap: Record<string, string>;
   primaryColor?: string;
+  allowEmpty?: boolean;
 }
 
 export async function generateDocsJson(options: GenerateDocsJsonOptions): Promise<DocsJson> {
@@ -206,7 +446,7 @@ export async function generateDocsJson(options: GenerateDocsJsonOptions): Promis
     .filter((file) => !isIgnored(file, options.excludePatterns))
     .map((file) => toPagePath(file));
 
-  if (pagePaths.length === 0) {
+  if (pagePaths.length === 0 && !options.allowEmpty) {
     throw new SparkifyError(
       `No .mdx pages were found in ${options.docsDir}. Create at least an index.mdx page.`,
       ExitCode.InvalidDocsJson
@@ -220,7 +460,10 @@ export async function generateDocsJson(options: GenerateDocsJsonOptions): Promis
     colors: {
       primary: options.primaryColor ?? "#2563eb"
     },
-    navigation: buildNavigation(pagePaths, options.dirTitleMap)
+    navigation: buildNavigation(pagePaths, options.dirTitleMap),
+    configSource: "generated",
+    warnings: [],
+    unknownFields: []
   };
 }
 
@@ -267,6 +510,36 @@ export function extractPageTitle(content: string, fallbackPagePath: string): str
   return prettyTitle(basename.replace(/^index$/, "home"));
 }
 
+function collectPageRefs(items: DocsNavigationItem[] | undefined, output: string[]): void {
+  if (!items) {
+    return;
+  }
+
+  for (const item of items) {
+    if (typeof item === "string") {
+      output.push(item);
+      continue;
+    }
+
+    collectPageRefs(item.pages, output);
+  }
+}
+
+function collectOpenApiRefs(items: DocsNavigationItem[] | undefined, output: Set<string>): void {
+  if (!items) {
+    return;
+  }
+
+  for (const item of items) {
+    if (typeof item !== "string") {
+      if (item.openapi) {
+        output.add(item.openapi);
+      }
+      collectOpenApiRefs(item.pages, output);
+    }
+  }
+}
+
 export function collectNavigationPages(docsJson: DocsJson): string[] {
   const pageRefs: string[] = [];
   for (const group of docsJson.navigation) {
@@ -290,3 +563,4 @@ export function collectNavigationOpenApiSources(docsJson: DocsJson): string[] {
 export function isOperationReference(value: string): boolean {
   return /^(GET|POST|PUT|PATCH|DELETE|OPTIONS|HEAD)\s+\/.+/i.test(value.trim());
 }
+

@@ -1,0 +1,23 @@
+---
+interface Props {
+  text?: string;
+}
+
+const { text } = Astro.props;
+---
+
+<span class="sf-badge"><slot />{text}</span>
+
+<style>
+  .sf-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    border: 1px solid #ddd6fe;
+    background: #f5f3ff;
+    color: #5b21b6;
+    padding: 0.08rem 0.46rem;
+    font-size: 0.74rem;
+    font-weight: 700;
+  }
+</style>

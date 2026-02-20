@@ -1,0 +1,48 @@
+---
+interface Props {
+  status?: string;
+  title?: string;
+  body?: string;
+}
+
+const { status, title, body } = Astro.props;
+---
+
+<div class="sf-response-field">
+  <div class="sf-response-header">
+    {status ? <span class="sf-status">{status}</span> : null}
+    {title ? <strong>{title}</strong> : null}
+  </div>
+  <div class="sf-response-body"><slot />{body ? <p>{body}</p> : null}</div>
+</div>
+
+<style>
+  .sf-response-field {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 0.75rem;
+    margin: 0.7rem 0;
+    background: #fff;
+  }
+
+  .sf-response-header {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-bottom: 0.45rem;
+  }
+
+  .sf-status {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #065f46;
+    background: #d1fae5;
+    border-radius: 999px;
+    padding: 0.08rem 0.45rem;
+  }
+
+  .sf-response-body :global(p:last-child) {
+    margin-bottom: 0;
+  }
+</style>

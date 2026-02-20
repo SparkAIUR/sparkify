@@ -1,3 +1,6 @@
 {
+  "site": {
+    "name": "sparkify"
+  },
   "groups": []
 }
