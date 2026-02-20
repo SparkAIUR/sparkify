@@ -1,0 +1,32 @@
+---
+title: "API Playground"
+description: "Interactive OpenAPI reference and Try It behavior in static docs."
+---
+
+# API Playground
+
+The MVP includes an interactive API playground embedded in the docs site.
+
+## MVP Direction
+
+- Provider-first implementation (Stoplight first, pluggable design).
+- OpenAPI-driven reference rendering.
+- Client-side request execution for Try It.
+
+## Networking Constraints
+
+Because GitHub Pages is static hosting:
+
+- Target APIs must allow CORS, or
+- You must configure an external CORS proxy.
+
+## Auth & Server Selection
+
+Planned UX supports:
+
+- API key auth
+- Bearer token auth
+- Basic auth
+- Base URL selection from OpenAPI `servers` (or override)
+
+See internal design spec in `refs/docs/06-api-playground-spec.md`.
