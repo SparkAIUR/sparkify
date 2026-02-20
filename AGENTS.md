@@ -16,19 +16,26 @@ When implementation starts, follow the planned monorepo layout from `refs/docs/0
 - `examples/` (FastAPI + docs demos)
 
 ## Build, Test, and Development Commands
-There is no runnable code yet. During this phase, contributors should validate and evolve specs:
-- `rg --files refs` — list all project docs.
+Primary local commands:
+- `npm run lint` — ESLint across TypeScript packages.
+- `npm run typecheck` — TypeScript project reference checks.
+- `npm run test` — unit + integration tests (Vitest).
+- `npm run test:e2e` — Playwright smoke test.
+- `npm run build` — build all packages in release order.
+
+CLI commands:
+- `node packages/cli/dist/bin.js init`
+- `node packages/cli/dist/bin.js dev`
+- `node packages/cli/dist/bin.js build --site <url> --base /<repo>`
+- `node packages/cli/dist/bin.js doctor`
+- `node packages/cli/dist/bin.js export-openapi --fastapi \"pkg.main:app\"`
+
+Specs/docs support:
+- `rg --files refs` — list internal spec docs.
 - `sed -n '1,200p' refs/docs/<file>.md` — inspect a spec quickly.
 - `make npm-whoami` — verify npm auth using `.env` (`NPM_TOKEN`) and expected user.
 - `make publish-dry-run` — validate npm publish metadata and package contents.
 - `make publish` — publish to npmjs.com as `spark-aiur`.
-
-Target commands once scaffolded (keep interfaces stable):
-- `npx sparkify init` — scaffold docs setup.
-- `npx sparkify dev` — run local docs preview.
-- `npx sparkify build --site <url> --base /<repo>` — generate GitHub Pages output.
-- `npx sparkify doctor` — environment/config diagnostics.
-- `npx sparkify export-openapi --fastapi "pkg.main:app"` — export FastAPI OpenAPI schema.
 
 ## Coding Style & Naming Conventions
 - Use TypeScript with strict mode for CLI/core packages.

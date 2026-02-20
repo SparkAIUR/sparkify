@@ -1,0 +1,15 @@
+{
+  "$schema": "https://mintlify.com/schema/docs.json",
+  "theme": "mint",
+  "name": "fixture",
+  "navigation": [
+    {
+      "group": "Docs",
+      "pages": ["index"]
+    },
+    {
+      "group": "API",
+      "openapi": "openapi.json"
+    }
+  ]
+}

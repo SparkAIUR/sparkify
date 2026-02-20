@@ -5,28 +5,31 @@ description: "Interactive OpenAPI reference and Try It behavior in static docs."
 
 # API Playground
 
-The MVP includes an interactive API playground embedded in the docs site.
+`sparkify` v0.1.0 uses Stoplight Elements for interactive API pages.
 
-## MVP Direction
-
-- Provider-first implementation (Stoplight first, pluggable design).
-- OpenAPI-driven reference rendering.
-- Client-side request execution for Try It.
-
-## Networking Constraints
-
-Because GitHub Pages is static hosting:
-
-- Target APIs must allow CORS, or
-- You must configure an external CORS proxy.
-
-## Auth & Server Selection
-
-Planned UX supports:
+## Support
 
 - API key auth
-- Bearer token auth
+- Bearer auth
 - Basic auth
-- Base URL selection from OpenAPI `servers` (or override)
+- OAuth2 browser-safe flows:
+  - Authorization Code + PKCE
+  - Device Code
 
-See internal design spec in `refs/docs/06-api-playground-spec.md`.
+## Static hosting constraints
+
+On GitHub Pages, Try It requests are browser-side:
+
+- API must allow CORS, or
+- configure `playground.tryItCorsProxy`.
+
+## Config example
+
+```json
+{
+  "playground": {
+    "provider": "stoplight",
+    "tryItCorsProxy": ""
+  }
+}
+```

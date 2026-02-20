@@ -1,0 +1,8 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/playground-stoplight" },
+    { "path": "./packages/core" },
+    { "path": "./packages/cli" }
+  ]
+}

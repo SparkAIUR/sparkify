@@ -1,22 +1,35 @@
 ---
 title: "CLI Reference"
-description: "Planned sparkify CLI commands and their responsibilities."
+description: "sparkify CLI commands and flags."
 ---
 
 # CLI Reference
 
-The MVP command surface is planned as:
+## `sparkify init`
 
-- `sparkify init`: scaffold docs structure and starter files.
-- `sparkify dev`: run local preview with file watching.
-- `sparkify build`: produce static output for deployment.
-- `sparkify doctor`: validate environment and project configuration.
-- `sparkify export-openapi`: export OpenAPI from FastAPI (`app.openapi()`).
+Scaffold docs starter files.
 
-## Config
+## `sparkify dev`
 
-Planned config file:
+Run local preview server with workspace rebuild on docs/python changes.
 
-- `sparkify.config.json` (name may be finalized during implementation)
+## `sparkify build`
 
-See internal spec details in `refs/docs/04-cli-spec.md`.
+Build static output (default `./dist`).
+
+Useful flags:
+- `--site https://<user>.github.io`
+- `--base /<repo>`
+- `--strict`
+
+## `sparkify doctor`
+
+Checks Node version, docs directory, config parsing, and OpenAPI validity.
+
+## `sparkify export-openapi`
+
+Exports OpenAPI from FastAPI without starting a server.
+
+```bash
+sparkify export-openapi --fastapi "app.main:app" --out ./docs/openapi.json
+```

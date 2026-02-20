@@ -1,0 +1,181 @@
+---
+interface NavLink {
+  title: string;
+  path: string;
+  href: string;
+}
+
+interface NavGroup {
+  group: string;
+  links: NavLink[];
+}
+
+interface Props {
+  title: string;
+  currentPath: string;
+  nav: {
+    groups: NavGroup[];
+  };
+}
+
+const { title, currentPath, nav } = Astro.props;
+const base = import.meta.env.BASE_URL || "/";
+
+function withBase(href: string): string {
+  const trimmedBase = base.endsWith("/") ? base.slice(0, -1) : base;
+  if (href === "index") {
+    return `${trimmedBase || ""}/`;
+  }
+  return `${trimmedBase || ""}/${href}`;
+}
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title} | sparkify</title>
+    <style>
+      :root {
+        --bg: #f8fafc;
+        --surface: #ffffff;
+        --text: #0f172a;
+        --muted: #64748b;
+        --border: #e2e8f0;
+        --brand: #2563eb;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+        background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+        color: var(--text);
+      }
+
+      .shell {
+        display: grid;
+        grid-template-columns: minmax(220px, 280px) 1fr;
+        min-height: 100vh;
+      }
+
+      nav {
+        border-right: 1px solid var(--border);
+        padding: 1.5rem 1rem;
+        background: var(--surface);
+        position: sticky;
+        top: 0;
+        max-height: 100vh;
+        overflow: auto;
+      }
+
+      nav h2 {
+        margin: 0 0 1rem;
+        font-size: 1rem;
+      }
+
+      nav h3 {
+        margin: 1rem 0 0.5rem;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+      }
+
+      nav ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      nav a {
+        display: block;
+        padding: 0.35rem 0.5rem;
+        border-radius: 0.4rem;
+        color: inherit;
+        text-decoration: none;
+      }
+
+      nav a:hover {
+        background: #eff6ff;
+      }
+
+      nav a[data-active="true"] {
+        background: #dbeafe;
+        color: #1e40af;
+        font-weight: 600;
+      }
+
+      main {
+        padding: 2rem;
+        max-width: 900px;
+        width: 100%;
+      }
+
+      article {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+      }
+
+      pre {
+        overflow: auto;
+        background: #0b1220;
+        color: #e2e8f0;
+        border-radius: 0.5rem;
+        padding: 1rem;
+      }
+
+      code {
+        font-family: "JetBrains Mono", "SF Mono", monospace;
+      }
+
+      @media (max-width: 900px) {
+        .shell {
+          grid-template-columns: 1fr;
+        }
+
+        nav {
+          position: static;
+          max-height: none;
+          border-right: 0;
+          border-bottom: 1px solid var(--border);
+        }
+
+        main {
+          padding: 1rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <nav>
+        <h2>sparkify</h2>
+        {nav.groups.map((group) => (
+          <section>
+            <h3>{group.group}</h3>
+            <ul>
+              {group.links.map((link) => (
+                <li>
+                  <a href={withBase(link.href)} data-active={link.path === currentPath ? "true" : "false"}>
+                    {link.title}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </nav>
+      <main>
+        <article>
+          <slot />
+        </article>
+      </main>
+    </div>
+  </body>
+</html>

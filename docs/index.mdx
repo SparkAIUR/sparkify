@@ -5,20 +5,19 @@ description: "Static Mintlify-style docs generator for GitHub Pages"
 
 # sparkify
 
-Welcome to the public documentation for `sparkify`.
+`sparkify` builds static docs from Mintlify-style content for GitHub Pages.
 
-This `docs/` directory is intentionally used as a dogfooding target for the project itself.
+## Commands
 
-## Current Status
+- `sparkify init`
+- `sparkify dev`
+- `sparkify build`
+- `sparkify doctor`
+- `sparkify export-openapi`
 
-- Planning and architecture are tracked internally in `refs/`.
-- Public-facing usage and product docs will be maintained here.
+## What it supports in v0.1.0
 
-## Next
-
-As implementation starts, this site will document:
-
-- Installation and quickstart
-- CLI usage (`init`, `dev`, `build`, `doctor`, `export-openapi`)
-- GitHub Pages deployment
-- OpenAPI playground configuration
+- Existing `docs.json` or auto-generated navigation
+- MDX pages and static assets
+- OpenAPI-powered API route with interactive Stoplight UI
+- FastAPI schema export (`app.openapi()`)

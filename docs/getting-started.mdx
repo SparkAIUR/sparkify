@@ -5,15 +5,13 @@ description: "Install sparkify and generate your first static docs build."
 
 # Getting Started
 
-This guide covers the intended MVP workflow for `sparkify`.
-
 ## Prerequisites
 
 - Node.js 20+
 - npm
-- A repository with a `docs/` folder (or run `sparkify init` once available)
+- Python 3.10-3.12 (only required for `export-openapi`)
 
-## Quickstart (Planned)
+## Quickstart
 
 ```bash
 npx sparkify init
@@ -21,12 +19,14 @@ npx sparkify dev
 npx sparkify build --site https://<user>.github.io --base /<repo>
 ```
 
-## Output
+## Config
 
-- Local preview during development
-- Static build output in `dist/` for GitHub Pages deployment
+Create `sparkify.config.json` to avoid long command flags.
 
-## Notes
-
-- Internal planning/spec docs remain in `refs/`.
-- Public docs and dogfooding content stay in `docs/`.
+```json
+{
+  "docsDir": "./docs",
+  "outDir": "./dist",
+  "base": "/my-repo"
+}
+```

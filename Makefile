@@ -33,11 +33,17 @@ publish-dry-run: npm-whoami
 	tmp_npmrc="$$(mktemp)"; \
 	trap 'rm -f "$$tmp_npmrc"' EXIT; \
 	printf "//registry.npmjs.org/:_authToken=%s\n" "$$NPM_TOKEN" > "$$tmp_npmrc"; \
-	NPM_CONFIG_USERCONFIG="$$tmp_npmrc" npm publish --access public --dry-run
+	NPM_CONFIG_USERCONFIG="$$tmp_npmrc" npm publish --workspace @sparkify/playground-stoplight --access public --dry-run && \
+	NPM_CONFIG_USERCONFIG="$$tmp_npmrc" npm publish --workspace @sparkify/template-astro --access public --dry-run && \
+	NPM_CONFIG_USERCONFIG="$$tmp_npmrc" npm publish --workspace @sparkify/core --access public --dry-run && \
+	NPM_CONFIG_USERCONFIG="$$tmp_npmrc" npm publish --workspace sparkify --access public --dry-run
 
 publish: npm-whoami
 	@set -a; source .env; set +a; \
 	tmp_npmrc="$$(mktemp)"; \
 	trap 'rm -f "$$tmp_npmrc"' EXIT; \
 	printf "//registry.npmjs.org/:_authToken=%s\n" "$$NPM_TOKEN" > "$$tmp_npmrc"; \
-	NPM_CONFIG_USERCONFIG="$$tmp_npmrc" npm publish --access public
+	NPM_CONFIG_USERCONFIG="$$tmp_npmrc" npm publish --workspace @sparkify/playground-stoplight --access public && \
+	NPM_CONFIG_USERCONFIG="$$tmp_npmrc" npm publish --workspace @sparkify/template-astro --access public && \
+	NPM_CONFIG_USERCONFIG="$$tmp_npmrc" npm publish --workspace @sparkify/core --access public && \
+	NPM_CONFIG_USERCONFIG="$$tmp_npmrc" npm publish --workspace sparkify --access public

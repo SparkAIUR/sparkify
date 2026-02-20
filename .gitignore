@@ -1,3 +1,11 @@
-**DS_Store
-/refs
+.DS_Store
 .env
+/refs
+node_modules/
+dist/
+coverage/
+.vitest/
+packages/*/dist/
+examples/**/dist/
+test-results/
+playwright-report/

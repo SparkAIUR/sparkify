@@ -5,23 +5,19 @@ description: "Deploy sparkify-generated docs to GitHub Pages."
 
 # Deployment
 
-`sparkify` targets static hosting, with GitHub Pages as the primary deployment path.
-
-## Build (Planned)
+## Build
 
 ```bash
 npx sparkify build --site https://<user>.github.io --base /<repo>
 ```
 
-## GitHub Pages Requirements
+## GitHub Pages workflow essentials
 
-- Set the correct `base` path for repo pages.
-- Upload the generated `dist/` directory as the Pages artifact.
-- Deploy via GitHub Actions (`actions/upload-pages-artifact` + `actions/deploy-pages`).
+- Build docs to `dist/`
+- Upload `dist/` with `actions/upload-pages-artifact`
+- Deploy with `actions/deploy-pages`
 
-## Common Pitfalls
+## Pitfalls
 
-- Broken asset paths caused by missing or incorrect `--base`.
-- Route links that are not base-path aware.
-
-See CI/CD planning details in `refs/docs/10-ci-cd-release.md`.
+- Wrong `--base` causes broken routes/assets
+- Missing `site` can break canonical URLs

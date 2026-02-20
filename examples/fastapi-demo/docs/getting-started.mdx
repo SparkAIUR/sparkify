@@ -1,0 +1,9 @@
+---
+title: "Getting Started"
+---
+
+# Getting Started
+
+1. Export schema: `sparkify export-openapi --fastapi "app.main:app" --out ./docs/openapi.json`
+2. Run docs dev server: `sparkify dev --docs-dir ./docs`
+3. Build docs: `sparkify build --docs-dir ./docs --site https://<user>.github.io --base /<repo>`

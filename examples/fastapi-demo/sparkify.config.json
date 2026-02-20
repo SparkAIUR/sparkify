@@ -1,0 +1,18 @@
+{
+  "docsDir": "./docs",
+  "openapi": [
+    {
+      "id": "demo",
+      "source": "./docs/openapi.json",
+      "route": "/api",
+      "title": "Demo API"
+    }
+  ],
+  "fastapi": {
+    "app": "app.main:app",
+    "exportPath": "./docs/openapi.json"
+  },
+  "playground": {
+    "provider": "stoplight"
+  }
+}
