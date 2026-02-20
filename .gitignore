@@ -11,3 +11,4 @@ test-results/
 playwright-report/
 .astro/
 *.tsbuildinfo
+/.playwright-cli
