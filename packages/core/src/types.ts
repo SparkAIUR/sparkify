@@ -116,6 +116,30 @@ export interface DocsTopbarCtaButton {
   url: string;
 }
 
+export interface DocsNavbarLink {
+  label: string;
+  href: string;
+  icon?: string;
+}
+
+export interface DocsNavbarPrimaryButton {
+  type: "button";
+  href: string;
+  label: string;
+}
+
+export interface DocsNavbarPrimaryGithub {
+  type: "github";
+  href: string;
+}
+
+export type DocsNavbarPrimary = DocsNavbarPrimaryButton | DocsNavbarPrimaryGithub;
+
+export interface DocsNavbar {
+  links?: DocsNavbarLink[];
+  primary?: DocsNavbarPrimary;
+}
+
 export interface DocsTab {
   name: string;
   url: string;
@@ -129,6 +153,10 @@ export interface DocsAnchor {
 
 export type DocsFooterSocials = Record<string, string>;
 
+export interface DocsFooter {
+  socials?: DocsFooterSocials;
+}
+
 export interface DocsJson {
   $schema?: string;
   theme: string;
@@ -138,9 +166,11 @@ export interface DocsJson {
   colors?: DocsColors;
   topbarLinks?: DocsTopbarLink[];
   topbarCtaButton?: DocsTopbarCtaButton;
+  navbar?: DocsNavbar;
   tabs?: DocsTab[];
   anchors?: DocsAnchor[];
   footerSocials?: DocsFooterSocials;
+  footer?: DocsFooter;
   navigation: DocsNavigationGroup[];
   configSource?: DocsConfigSourceType;
   configPath?: string;

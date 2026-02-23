@@ -1,6 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { spawn, type ChildProcess } from "node:child_process";
+import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
 import chokidar from "chokidar";
 import { generateAstroProject } from "./astro-project.js";
 import { ExitCode, SparkifyError } from "./errors.js";
@@ -8,8 +10,54 @@ import { createLogger, type Logger } from "./logger.js";
 import type { BuildOptions, DevOptions, SparkifyConfigV1 } from "./types.js";
 import { cleanupWorkspace, prepareWorkspace } from "./workspace.js";
 
+const ASTRO_REACT_OPTS_LOADER_SOURCE = `const SPECIFIER = "astro:react:opts";
+const PAYLOAD = "data:text/javascript,export default { experimentalReactChildren: false, experimentalDisableStreaming: false };";
+
+export async function resolve(specifier, context, defaultResolve) {
+  if (specifier === SPECIFIER) {
+    return { url: PAYLOAD, shortCircuit: true };
+  }
+  return defaultResolve(specifier, context, defaultResolve);
+}
+`;
+
+const ASTRO_REACT_OPTS_REGISTER_SOURCE = `import { register } from "node:module";
+
+register(new URL("./astro-react-opts-loader.mjs", import.meta.url).href, import.meta.url);
+`;
+
 function npxCommand(): string {
   return process.platform === "win32" ? "npx.cmd" : "npx";
+}
+
+function nodeMajorVersion(): number {
+  const [major] = process.versions.node.split(".");
+  return Number.parseInt(major ?? "0", 10);
+}
+
+function shouldPinAstroNodeRuntime(): boolean {
+  const major = nodeMajorVersion();
+  return Number.isFinite(major) && major >= 23;
+}
+
+function getAstroCliPath(): string {
+  const require = createRequire(import.meta.url);
+  const astroPkgPath = require.resolve("astro/package.json");
+  return path.join(path.dirname(astroPkgPath), "astro.js");
+}
+
+function astroInvocation(subcommand: "build" | "dev", args: string[]): { command: string; args: string[] } {
+  if (shouldPinAstroNodeRuntime()) {
+    return {
+      command: npxCommand(),
+      args: ["-y", "node@22", getAstroCliPath(), subcommand, ...args]
+    };
+  }
+
+  return {
+    command: npxCommand(),
+    args: ["astro", subcommand, ...args]
+  };
 }
 
 async function spawnCommand(
@@ -117,7 +165,34 @@ async function validateInternalLinks(outDir: string, base: string): Promise<void
   }
 }
 
-function buildAstroEnv(config: SparkifyConfigV1): NodeJS.ProcessEnv {
+async function ensureAstroReactOptsShim(projectRoot: string): Promise<string> {
+  const shimDir = path.join(projectRoot, ".sparkify");
+  await fs.mkdir(shimDir, { recursive: true });
+
+  const loaderPath = path.join(shimDir, "astro-react-opts-loader.mjs");
+  const registerPath = path.join(shimDir, "astro-react-opts-register.mjs");
+
+  await Promise.all([
+    fs.writeFile(loaderPath, ASTRO_REACT_OPTS_LOADER_SOURCE, "utf8"),
+    fs.writeFile(registerPath, ASTRO_REACT_OPTS_REGISTER_SOURCE, "utf8")
+  ]);
+
+  return registerPath;
+}
+
+function appendNodeOption(existing: string | undefined, option: string): string {
+  if (!existing || !existing.trim()) {
+    return option;
+  }
+
+  if (existing.includes(option)) {
+    return existing;
+  }
+
+  return `${existing} ${option}`;
+}
+
+function buildAstroEnv(config: SparkifyConfigV1, registerPath: string): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = { ...process.env };
   if (config.site) {
     env.SPARKIFY_SITE = config.site;
@@ -125,6 +200,8 @@ function buildAstroEnv(config: SparkifyConfigV1): NodeJS.ProcessEnv {
   if (config.base) {
     env.SPARKIFY_BASE = config.base;
   }
+  const registerImport = `--import=${pathToFileURL(registerPath).href}`;
+  env.NODE_OPTIONS = appendNodeOption(env.NODE_OPTIONS, registerImport);
   return env;
 }
 
@@ -141,16 +218,23 @@ export async function buildSite(config: SparkifyConfigV1, options: BuildOptions 
     }
 
     const project = await generateAstroProject(workspace, config);
+    const astroRegisterPath = await ensureAstroReactOptsShim(project.projectRoot);
 
     logger.info(`Building site with Astro from ${project.projectRoot}`);
-    await spawnCommand(
-      npxCommand(),
-      ["astro", "build", "--root", project.projectRoot, "--outDir", config.outDir],
-      {
-        env: buildAstroEnv(config),
-        logger
-      }
-    );
+    if (shouldPinAstroNodeRuntime()) {
+      logger.info(`Detected Node ${process.versions.node}; using Node 22 runtime for Astro.`);
+    }
+    const buildInvocation = astroInvocation("build", [
+      "--root",
+      project.projectRoot,
+      "--outDir",
+      config.outDir
+    ]);
+
+    await spawnCommand(buildInvocation.command, buildInvocation.args, {
+      env: buildAstroEnv(config, astroRegisterPath),
+      logger
+    });
 
     if (options.strict) {
       logger.info("Running strict internal link checks");
@@ -182,6 +266,7 @@ export async function startDevServer(config: SparkifyConfigV1, options: DevOptio
   const launch = async (): Promise<void> => {
     const workspace = await prepareWorkspace(config, { mode: "dev", debug: options.debug });
     const project = await generateAstroProject(workspace, config);
+    const astroRegisterPath = await ensureAstroReactOptsShim(project.projectRoot);
 
     state.workspaceRoot = workspace.rootDir;
     state.projectRoot = project.projectRoot;
@@ -193,23 +278,22 @@ export async function startDevServer(config: SparkifyConfigV1, options: DevOptio
       logger.info(`Config compatibility warning: ${warning}`);
     }
     logger.info(`Starting dev server on port ${options.port}`);
+    if (shouldPinAstroNodeRuntime()) {
+      logger.info(`Detected Node ${process.versions.node}; using Node 22 runtime for Astro dev.`);
+    }
 
-    state.child = spawn(
-      npxCommand(),
-      [
-        "astro",
-        "dev",
-        "--root",
-        project.projectRoot,
-        "--port",
-        String(options.port),
-        "--host"
-      ],
-      {
-        env: buildAstroEnv(config),
-        stdio: "inherit"
-      }
-    );
+    const devInvocation = astroInvocation("dev", [
+      "--root",
+      project.projectRoot,
+      "--port",
+      String(options.port),
+      "--host"
+    ]);
+
+    state.child = spawn(devInvocation.command, devInvocation.args, {
+      env: buildAstroEnv(config, astroRegisterPath),
+      stdio: "inherit"
+    });
 
     state.child.on("close", async (code) => {
       if (code !== null && code !== 0 && !restarting) {

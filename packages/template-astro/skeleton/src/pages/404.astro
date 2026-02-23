@@ -1,9 +1,13 @@
 ---
-import DocsLayout from "../layouts/DocsLayout.astro";
-import nav from "../generated/navigation.json";
+import Layout from "../layouts/Layout.astro";
 ---
 
-<DocsLayout title="Not Found" currentPath="" nav={nav}>
-  <h1>Page not found</h1>
-  <p>The requested page does not exist.</p>
-</DocsLayout>
+<Layout title="Page not found">
+  <main style="min-height:60vh;display:grid;place-items:center;padding:2rem;">
+    <div style="text-align:center;max-width:36rem;">
+      <h1 style="margin:0 0 0.75rem;font-size:2rem;">Page not found</h1>
+      <p style="margin:0;color:#6b7280;">The page you requested does not exist.</p>
+      <p style="margin-top:1rem;"><a href="/" style="color:#2563eb;">Go to home</a></p>
+    </div>
+  </main>
+</Layout>

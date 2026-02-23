@@ -5,9 +5,11 @@ import { minimatch } from "minimatch";
 import { z } from "zod";
 import { ExitCode, SparkifyError } from "./errors.js";
 import type {
+  DocsAnchor,
   DocsConfigLoadResult,
   DocsConfigSourceType,
   DocsJson,
+  DocsTab,
   DocsNavigationGroup,
   DocsNavigationItem
 } from "./types.js";
@@ -30,6 +32,29 @@ const topbarCtaButtonSchema = z.object({
   url: z.string().min(1)
 });
 
+const navbarLinkSchema = z.object({
+  label: z.string().min(1),
+  href: z.string().min(1),
+  icon: z.string().optional()
+});
+
+const navbarPrimarySchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("button"),
+    label: z.string().min(1),
+    href: z.string().min(1)
+  }),
+  z.object({
+    type: z.literal("github"),
+    href: z.string().min(1)
+  })
+]);
+
+const navbarSchema = z.object({
+  links: z.array(navbarLinkSchema).optional(),
+  primary: navbarPrimarySchema.optional()
+});
+
 const tabSchema = z.object({
   name: z.string().min(1),
   url: z.string().min(1)
@@ -39,6 +64,23 @@ const anchorSchema = z.object({
   name: z.string().min(1),
   icon: z.string().optional(),
   url: z.string().optional()
+});
+
+const navigationAnchorSchema = z.object({
+  anchor: z.string().min(1),
+  href: z.string().min(1).optional(),
+  icon: z
+    .union([
+      z.string(),
+      z.object({
+        name: z.string().min(1)
+      })
+    ])
+    .optional()
+});
+
+const footerSchema = z.object({
+  socials: z.record(z.string(), z.string()).optional()
 });
 
 const docsConfigSchema = z
@@ -72,10 +114,12 @@ const docsConfigSchema = z
       .optional(),
     topbarLinks: z.array(topbarLinkSchema).optional(),
     topbarCtaButton: topbarCtaButtonSchema.optional(),
+    navbar: navbarSchema.optional(),
     tabs: z.array(tabSchema).optional(),
     anchors: z.array(anchorSchema).optional(),
     footerSocials: z.record(z.string(), z.string()).optional(),
-    navigation: z.array(docsGroupSchema).optional()
+    footer: footerSchema.optional(),
+    navigation: z.unknown().optional()
   })
   .passthrough();
 
@@ -88,10 +132,12 @@ const KNOWN_TOP_LEVEL_KEYS = new Set([
   "colors",
   "topbarLinks",
   "topbarCtaButton",
+  "navbar",
   "tabs",
   "anchors",
   "navigation",
-  "footerSocials"
+  "footerSocials",
+  "footer"
 ]);
 
 function normalizeRelPath(value: string): string {
@@ -246,6 +292,113 @@ function normalizeNavigationGroup(value: unknown, warnings: string[]): DocsNavig
   };
 }
 
+function normalizeTabsFromNavigation(value: unknown, warnings: string[]): DocsTab[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return null;
+      }
+      const tab = entry as Record<string, unknown>;
+      const name = typeof tab.tab === "string" ? tab.tab.trim() : "";
+      if (!name) {
+        warnings.push("navigation.tabs entries should include 'tab'.");
+        return null;
+      }
+
+      if (typeof tab.href === "string" && tab.href.trim()) {
+        return { name, url: tab.href.trim().replace(/^\/+/, "") };
+      }
+
+      const firstPage = Array.isArray(tab.pages) ? tab.pages.find((item) => typeof item === "string") : null;
+      if (typeof firstPage === "string") {
+        return { name, url: firstPage };
+      }
+
+      const firstGroup = Array.isArray(tab.groups) ? tab.groups.find((group) => group && typeof group === "object") : null;
+      if (firstGroup && typeof firstGroup === "object") {
+        const groupPages = (firstGroup as Record<string, unknown>).pages;
+        if (Array.isArray(groupPages)) {
+          const nestedFirst = groupPages.find((item) => typeof item === "string");
+          if (typeof nestedFirst === "string") {
+            return { name, url: nestedFirst };
+          }
+        }
+      }
+
+      return { name, url: "index" };
+    })
+    .filter((tab): tab is DocsTab => Boolean(tab));
+}
+
+function normalizeAnchorsFromNavigationGlobal(value: unknown, warnings: string[]): DocsAnchor[] {
+  if (!value || typeof value !== "object") {
+    return [];
+  }
+
+  const global = value as Record<string, unknown>;
+  if (!Array.isArray(global.anchors)) {
+    return [];
+  }
+
+  const anchors: DocsAnchor[] = [];
+
+  for (const anchor of global.anchors) {
+    const parsed = navigationAnchorSchema.safeParse(anchor);
+    if (!parsed.success) {
+      warnings.push("navigation.global.anchors contains an invalid anchor entry.");
+      continue;
+    }
+
+    anchors.push({
+      name: parsed.data.anchor,
+      url: parsed.data.href,
+      icon:
+        typeof parsed.data.icon === "string"
+          ? parsed.data.icon
+          : parsed.data.icon?.name
+    });
+  }
+
+  return anchors;
+}
+
+function flattenNavigationFromTabs(value: unknown, warnings: string[]): DocsNavigationGroup[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const groups: DocsNavigationGroup[] = [];
+
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object") {
+      continue;
+    }
+    const tab = entry as Record<string, unknown>;
+
+    if (Array.isArray(tab.groups)) {
+      for (const group of tab.groups) {
+        const normalized = normalizeNavigationGroup(group, warnings);
+        if (normalized) {
+          groups.push(normalized);
+        }
+      }
+    }
+
+    if (Array.isArray(tab.pages)) {
+      groups.push({
+        group: typeof tab.tab === "string" && tab.tab.trim() ? tab.tab.trim() : "Documentation",
+        pages: normalizeNavigationPages(tab.pages, warnings)
+      });
+    }
+  }
+
+  return groups;
+}
+
 function normalizeNavigation(value: unknown, warnings: string[]): DocsNavigationGroup[] {
   if (!value) {
     return [];
@@ -263,6 +416,10 @@ function normalizeNavigation(value: unknown, warnings: string[]): DocsNavigation
       return obj.groups
         .map((item) => normalizeNavigationGroup(item, warnings))
         .filter((group): group is DocsNavigationGroup => Boolean(group));
+    }
+
+    if (Array.isArray(obj.tabs)) {
+      return flattenNavigationFromTabs(obj.tabs, warnings);
     }
 
     // Legacy object form: { "Group Name": ["page-a", "page-b"] }
@@ -320,7 +477,30 @@ function normalizeDocsConfig(
 
   const warnings: string[] = [];
   const navigation = normalizeNavigation(rawObject.navigation, warnings);
+  const navigationObject = rawObject.navigation && typeof rawObject.navigation === "object"
+    ? (rawObject.navigation as Record<string, unknown>)
+    : undefined;
+  const inferredTabs = normalizeTabsFromNavigation(navigationObject?.tabs, warnings);
+  const inferredAnchors = normalizeAnchorsFromNavigationGlobal(navigationObject?.global, warnings);
   const unknownFields = Object.keys(rawObject).filter((key) => !KNOWN_TOP_LEVEL_KEYS.has(key));
+
+  const normalizedTopbarLinks =
+    parse.data.topbarLinks ??
+    parse.data.navbar?.links?.map((link) => ({
+      name: link.label,
+      url: link.href
+    }));
+
+  const normalizedTopbarCta =
+    parse.data.topbarCtaButton ??
+    (parse.data.navbar?.primary
+      ? {
+          name: parse.data.navbar.primary.type === "button" ? parse.data.navbar.primary.label : "GitHub",
+          url: parse.data.navbar.primary.href
+        }
+      : undefined);
+
+  const normalizedFooterSocials = parse.data.footerSocials ?? parse.data.footer?.socials;
 
   const docsConfig: DocsJson = {
     $schema: parse.data.$schema,
@@ -329,11 +509,13 @@ function normalizeDocsConfig(
     logo: parse.data.logo,
     favicon: parse.data.favicon,
     colors: parse.data.colors,
-    topbarLinks: parse.data.topbarLinks,
-    topbarCtaButton: parse.data.topbarCtaButton,
-    tabs: parse.data.tabs,
-    anchors: parse.data.anchors,
-    footerSocials: parse.data.footerSocials,
+    topbarLinks: normalizedTopbarLinks,
+    topbarCtaButton: normalizedTopbarCta,
+    navbar: parse.data.navbar,
+    tabs: parse.data.tabs ?? inferredTabs,
+    anchors: parse.data.anchors ?? inferredAnchors,
+    footerSocials: normalizedFooterSocials,
+    footer: parse.data.footer,
     navigation,
     configSource: source,
     configPath: sourcePath,
@@ -563,4 +745,3 @@ export function collectNavigationOpenApiSources(docsJson: DocsJson): string[] {
 export function isOperationReference(value: string): boolean {
   return /^(GET|POST|PUT|PATCH|DELETE|OPTIONS|HEAD)\s+\/.+/i.test(value.trim());
 }
-

@@ -81,4 +81,51 @@ describe("generateDocsJson", () => {
     expect(discovered.source).toBe("docs.json");
     expect(discovered.config?.name).toBe("Docs Config");
   });
+
+  it("normalizes modern docs.json navigation/navbar/footer fields", async () => {
+    const docsDir = await fs.mkdtemp(path.join(os.tmpdir(), "sparkify-docs-v2-test-"));
+
+    await fs.writeFile(
+      path.join(docsDir, "docs.json"),
+      JSON.stringify(
+        {
+          name: "PipesHub",
+          navbar: {
+            links: [{ label: "Support", href: "https://example.com/support" }],
+            primary: { type: "github", href: "https://github.com/example/repo" }
+          },
+          footer: {
+            socials: { github: "https://github.com/example/repo" }
+          },
+          navigation: {
+            global: {
+              anchors: [{ anchor: "Docs", href: "https://example.com/docs", icon: "book" }]
+            },
+            tabs: [
+              {
+                tab: "Documentation",
+                groups: [{ group: "Getting Started", pages: ["index", "quickstart"] }]
+              },
+              {
+                tab: "API Reference",
+                groups: [{ group: "Endpoints", pages: ["api-reference/get-users"] }]
+              }
+            ]
+          }
+        },
+        null,
+        2
+      ),
+      "utf8"
+    );
+
+    const discovered = await loadDocsConfig(docsDir);
+    expect(discovered.source).toBe("docs.json");
+    expect(discovered.config?.topbarLinks?.[0]?.name).toBe("Support");
+    expect(discovered.config?.topbarCtaButton?.name).toBe("GitHub");
+    expect(discovered.config?.footerSocials?.github).toContain("github.com");
+    expect(discovered.config?.anchors?.[0]?.name).toBe("Docs");
+    expect(discovered.config?.tabs?.[1]?.name).toBe("API Reference");
+    expect(discovered.config?.navigation.length).toBeGreaterThanOrEqual(2);
+  });
 });

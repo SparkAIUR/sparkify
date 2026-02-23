@@ -191,6 +191,7 @@ function renderApiIntroductionPage(bundle: OpenApiBundle): string {
   return `---
 title: "API Introduction"
 description: "Generated API reference overview"
+openapiRoute: "${escapeFrontmatterString(bundle.route)}"
 ---
 
 # API Introduction
@@ -227,10 +228,14 @@ function renderEndpointPage(bundle: OpenApiBundle, operation: OpenApiBundle["ope
   const safeSummary = escapeMdxText(operation.summary);
   const safeTag = escapeMdxText(operation.tag);
   const safeOperationRef = escapeMdxText(`${operation.method} ${operation.path}`);
+  const safeRoute = escapeFrontmatterString(bundle.route);
   const lines: string[] = [
     "---",
     `title: "${escapeFrontmatterString(operation.summary)}"`,
     "description: \"Generated from OpenAPI\"",
+    `api: "${escapeFrontmatterString(`${operation.method} ${operation.path}`)}"`,
+    `openapiRoute: "${safeRoute}"`,
+    "mode: \"wide\"",
     "---",
     "",
     `# ${safeSummary}`,

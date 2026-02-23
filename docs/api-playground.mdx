@@ -1,42 +1,86 @@
 ---
 title: "API Playground"
-description: "Interactive OpenAPI reference and Try It behavior in static docs."
+description: "Interactive OpenAPI reference behavior, auth support, and static-hosting constraints."
 ---
 
 # API Playground
 
-`sparkify` v0.1.0 uses Stoplight Elements for interactive API pages.
+`sparkify` renders OpenAPI docs with endpoint-page mode by default (`api.mode: "endpoint-pages"`).
 
-Default API model is endpoint pages under `/api-reference/*` with a generated API intro.
-Single-page playground mode remains available via `api.mode: "single-page"`.
+<CardGroup cols={2}>
+  <Card title="Endpoint pages" icon="diagram-project">
+    Generates operation pages under `/api-reference/*`.
+  </Card>
+  <Card title="Single page" icon="file-lines">
+    Optional fallback with `api.mode: "single-page"`.
+  </Card>
+</CardGroup>
 
-## Support
+## Auth support
 
-- API key auth
-- Bearer auth
-- Basic auth
+- API key
+- Bearer
+- Basic
 - OAuth2 browser-safe flows:
   - Authorization Code + PKCE
   - Device Code
 
+<Warning>
+Secret-dependent OAuth2 flows are intentionally out of scope for static-browser execution.
+</Warning>
+
 ## Static hosting constraints
 
-On GitHub Pages, Try It requests are browser-side:
+Try It runs in-browser. Your API must allow CORS, or requests must go through a proxy.
 
-- API must allow CORS, or
-- configure `playground.tryItCorsProxy`.
+```json
+{
+  "playground": {
+    "provider": "stoplight",
+    "tryItCorsProxy": "https://proxy.example.com"
+  }
+}
+```
 
-## Config example
+## Troubleshooting Try It
+
+<AccordionGroup>
+  <Accordion title="CORS preflight fails">
+    Add the docs origin to allowed origins and ensure required methods/headers are permitted.
+  </Accordion>
+  <Accordion title="Remote schema requires auth">
+    Prefer local checked-in schema for deterministic builds, or configure authenticated fetch pipeline outside runtime.
+  </Accordion>
+  <Accordion title="Spec too large or has circular refs">
+    Pre-bundle the schema during CI and feed `sparkify` a bundled local artifact.
+  </Accordion>
+</AccordionGroup>
+
+## Config patterns
+
+<Tabs>
+  <Tab title="Endpoint pages (default)">
 
 ```json
 {
   "api": {
     "mode": "endpoint-pages",
     "apiRoot": "/api-reference"
-  },
-  "playground": {
-    "provider": "stoplight",
-    "tryItCorsProxy": ""
   }
 }
 ```
+
+  </Tab>
+  <Tab title="Single-page fallback">
+
+```json
+{
+  "api": {
+    "mode": "single-page",
+    "apiRoot": "/api"
+  }
+}
+```
+
+  </Tab>
+</Tabs>

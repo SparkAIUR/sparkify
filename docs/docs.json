@@ -11,8 +11,32 @@
       "pages": ["index", "getting-started"]
     },
     {
-      "group": "Guides",
-      "pages": ["cli", "deployment", "api-playground"]
+      "group": "Configuration",
+      "pages": ["configuration-overview", "configuration-reference"]
+    },
+    {
+      "group": "Use Cases",
+      "pages": [
+        "use-case-mintlify-migration",
+        "use-case-openapi-only",
+        "use-case-fastapi-export"
+      ]
+    },
+    {
+      "group": "Deployment",
+      "pages": ["deployment", "deploy-github-pages", "deploy-self-host-containers"]
+    },
+    {
+      "group": "Examples",
+      "pages": [
+        "examples-pipeshub-full",
+        "examples-authentivoice-reference",
+        "examples-frauditor-reference"
+      ]
+    },
+    {
+      "group": "Reference",
+      "pages": ["cli", "api-playground", "troubleshooting"]
     }
   ]
 }
