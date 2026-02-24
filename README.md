@@ -97,20 +97,20 @@ sparkify build --site https://<user>.github.io --base /<repo>
 
 ## Repository Layout
 
-- `/Volumes/S0/github/_sparkai/sparkify/packages/cli` — CLI command surface
-- `/Volumes/S0/github/_sparkai/sparkify/packages/core` — config, workspace, build/openapi pipeline
-- `/Volumes/S0/github/_sparkai/sparkify/packages/template-astro` — Astro skeleton used for generated sites
-- `/Volumes/S0/github/_sparkai/sparkify/packages/playground-stoplight` — Stoplight page generator
-- `/Volumes/S0/github/_sparkai/sparkify/examples/fastapi-demo` — end-to-end sample project
-- `/Volumes/S0/github/_sparkai/sparkify/refs/docs` — internal specs/backlog/ADRs
-- `/Volumes/S0/github/_sparkai/sparkify/docs` — dogfooding/public docs content
+- `./packages/cli` — CLI command surface
+- `./packages/core` — config, workspace, build/openapi pipeline
+- `./packages/template-astro` — Astro skeleton used for generated sites
+- `./packages/playground-stoplight` — Stoplight page generator
+- `./examples/fastapi-demo` — end-to-end sample project
+- `./refs/docs` — internal specs/backlog/ADRs
+- `./docs` — dogfooding/public docs content
 
 ## CI/CD
 
 Workflows:
-- `/Volumes/S0/github/_sparkai/sparkify/.github/workflows/ci.yml`
-- `/Volumes/S0/github/_sparkai/sparkify/.github/workflows/release.yml`
-- `/Volumes/S0/github/_sparkai/sparkify/.github/workflows/pages-demo.yml`
+- `./.github/workflows/ci.yml`
+- `./.github/workflows/release.yml`
+- `./.github/workflows/pages-demo.yml`
 
 ## Contributing
 
