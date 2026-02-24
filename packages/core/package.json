@@ -19,7 +19,7 @@
     "provenance": true
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "rm -rf dist && tsc -b tsconfig.json --force"
   },
   "dependencies": {
     "@apidevtools/swagger-parser": "^12.1.0",

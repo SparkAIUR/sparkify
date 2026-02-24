@@ -30,7 +30,7 @@ npx sparkify build --site https://<user>.github.io --base /<repo>
   </Step>
 </Steps>
 
-## Workflow template
+## Workflow template (consumer repos)
 
 ```yaml
 name: Deploy Docs
@@ -54,13 +54,7 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npm run build
-      - run: |
-          node packages/cli/dist/bin.js build \
-            --docs-dir ./docs \
-            --out ./dist \
-            --site https://${{ github.repository_owner }}.github.io \
-            --base /${{ github.event.repository.name }}
+      - run: npx sparkify build --site https://${{ github.repository_owner }}.github.io --base /${{ github.event.repository.name }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
@@ -70,6 +64,19 @@ jobs:
     needs: build
     steps:
       - uses: actions/deploy-pages@v4
+```
+
+## Workflow template (sparkify monorepo maintainers, internal)
+
+```yaml
+- run: npm ci
+- run: npm run build
+- run: |
+    node packages/cli/dist/bin.js build \
+      --docs-dir ./docs \
+      --out ./dist \
+      --site https://${{ github.repository_owner }}.github.io \
+      --base /${{ github.event.repository.name }}
 ```
 
 ## `site` and `base` matrix

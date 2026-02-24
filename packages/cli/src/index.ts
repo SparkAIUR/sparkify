@@ -1,4 +1,5 @@
 import path from "node:path";
+import { createRequire } from "node:module";
 import { Command } from "commander";
 import {
   ExitCode,
@@ -11,6 +12,9 @@ import {
   toExitCode
 } from "@sparkify/core";
 
+const require = createRequire(import.meta.url);
+const cliPackage = require("../package.json") as { version: string };
+
 function parseNumber(value: string): number {
   const parsed = Number.parseInt(value, 10);
   if (Number.isNaN(parsed)) {
@@ -22,11 +26,12 @@ function parseNumber(value: string): number {
 
 export async function runCli(argv: string[] = process.argv): Promise<number> {
   const program = new Command();
+  let exitCode = ExitCode.Success;
 
   program
     .name("sparkify")
     .description("Static Mintlify-style docs generator for GitHub Pages")
-    .version("0.1.0");
+    .version(cliPackage.version);
 
   program
     .command("init")
@@ -128,7 +133,7 @@ export async function runCli(argv: string[] = process.argv): Promise<number> {
       }
 
       if (report.errors.length > 0) {
-        process.exitCode = ExitCode.GeneralFailure;
+        exitCode = ExitCode.GeneralFailure;
       }
     });
 
@@ -158,10 +163,10 @@ export async function runCli(argv: string[] = process.argv): Promise<number> {
 
   try {
     await program.parseAsync(argv);
-    return ExitCode.Success;
-  } catch (error) {
-    const exitCode = toExitCode(error);
-    console.error((error as Error).message);
     return exitCode;
+  } catch (error) {
+    const commandExitCode = toExitCode(error);
+    console.error((error as Error).message);
+    return commandExitCode;
   }
 }

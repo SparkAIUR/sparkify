@@ -19,6 +19,6 @@
     "provenance": true
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "rm -rf dist && tsc -b tsconfig.json --force"
   }
 }

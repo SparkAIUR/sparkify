@@ -86,13 +86,15 @@ Export OpenAPI schema from FastAPI.
 | `--cwd <path>` | Working directory | current cwd |
 | `--pythonpath <path>` | PYTHONPATH prefix | none |
 
+Use the monorepo-local command below only when maintaining this repository.
+
 <CodeGroup>
 
 ```bash npm
 npx sparkify export-openapi --fastapi "app.main:app" --out ./docs/openapi.json
 ```
 
-```bash local
+```bash monorepo-maintainers-internal
 node packages/cli/dist/bin.js export-openapi --fastapi "app.main:app" --cwd ./examples/fastapi-demo
 ```
 

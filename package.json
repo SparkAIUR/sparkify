@@ -11,8 +11,11 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "npm run build --workspace @sparkify/playground-stoplight && npm run build --workspace @sparkify/core && npm run build --workspace @sparkify/template-astro && npm run build --workspace sparkify",
+    "build:deps": "npm run build --workspace @sparkify/playground-stoplight && npm run build --workspace @sparkify/core && npm run build --workspace @sparkify/template-astro",
+    "build:cli": "npm run build --workspace sparkify",
+    "build": "npm run build:deps && npm run build:cli",
     "clean": "rm -rf packages/*/dist .vitest coverage",
+    "predev": "npm run build:deps",
     "dev": "tsx packages/cli/src/bin.ts dev",
     "lint": "eslint .",
     "typecheck": "tsc -b",

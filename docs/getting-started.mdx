@@ -80,9 +80,12 @@ npx sparkify build --docs-dir ./docs --out ./dist
 
 ```bash
 npm ci
-npm run build
-node packages/cli/dist/bin.js dev --docs-dir ./docs
+npm run dev -- --docs-dir ./docs
+npx tsx packages/cli/src/bin.ts doctor --docs-dir ./docs
+npx tsx packages/cli/src/bin.ts build --docs-dir ./docs --out ./dist
 ```
+
+First `npm run dev` auto-builds internal workspace dependencies.
 
   </Tab>
 </Tabs>

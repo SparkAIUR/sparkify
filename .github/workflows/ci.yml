@@ -15,10 +15,18 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      - run: npm run dev -- --help
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test
       - run: npm run build
+      - run: |
+          pack_output="$(npm pack --dry-run --workspace sparkify 2>&1)"
+          echo "$pack_output"
+          echo "$pack_output" | grep -q "README.md"
+          echo "$pack_output" | grep -q "LICENSE"
+          echo "$pack_output" | grep -q "dist/index.js"
+          echo "$pack_output" | grep -q "package.json"
       - run: node packages/cli/dist/bin.js build --docs-dir ./docs --out ./dist-ci --site https://example.github.io --base /sparkify --strict
 
   fastapi-export:

@@ -20,6 +20,9 @@
     "github-pages"
   ],
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "bin": {
     "sparkify": "dist/bin.js"
   },

@@ -13,7 +13,9 @@ This is the full production-style reference implementation for `v0.1`.
 - Build config: `./refs/gen/pipeshub/sparkify.config.json`
 - Output: `./refs/gen/pipeshub/dist`
 
-## Build command
+## Build command (sparkify monorepo maintainers, internal)
+
+This command depends on monorepo-local artifacts and is not a consumer `npx` workflow.
 
 ```bash
 node packages/cli/dist/bin.js build \
