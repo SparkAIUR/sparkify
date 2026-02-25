@@ -43,7 +43,10 @@ function defaultDocsJson(projectName: string, primaryColor: string): string {
 
 function defaultConfigFile(options: InitOptions): string {
   const payload: Record<string, unknown> = {
-    docsDir: path.relative(process.cwd(), options.docsDir) || "./docs"
+    docsDir: path.relative(process.cwd(), options.docsDir) || "./docs",
+    llms: {
+      enabled: true
+    }
   };
 
   if (options.withOpenApi) {
@@ -145,6 +148,9 @@ export function configFromInitOptions(options: InitOptions): SparkifyConfigV1 {
     renderer: {
       engine: "mintlify-astro",
       fallbackLegacyRenderer: true
+    },
+    llms: {
+      enabled: true
     },
     playground: {
       provider: "stoplight",

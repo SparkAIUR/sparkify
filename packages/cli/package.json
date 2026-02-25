@@ -1,6 +1,6 @@
 {
   "name": "sparkify",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Mintlify-style static docs generator for GitHub Pages",
   "license": "MIT",
   "homepage": "https://github.com/spark-aiur/sparkify",
@@ -45,7 +45,7 @@
     "build": "rm -rf dist && tsc -b tsconfig.json --force"
   },
   "dependencies": {
-    "@sparkify/core": "0.1.0",
-    "commander": "^14.0.3"
+    "commander": "^14.0.3",
+    "sparkify-core": "0.1.1"
   }
 }

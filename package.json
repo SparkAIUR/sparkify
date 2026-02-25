@@ -11,7 +11,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "build:deps": "npm run build --workspace @sparkify/playground-stoplight && npm run build --workspace @sparkify/core && npm run build --workspace @sparkify/template-astro",
+    "build:deps": "npm run build --workspace sparkify-playground-stoplight && npm run build --workspace sparkify-core && npm run build --workspace sparkify-template-astro",
     "build:cli": "npm run build --workspace sparkify",
     "build": "npm run build:deps && npm run build:cli",
     "clean": "rm -rf packages/*/dist .vitest coverage",
@@ -29,8 +29,8 @@
     "release": "changeset publish"
   },
   "devDependencies": {
-    "@eslint/js": "^9.36.0",
     "@changesets/cli": "^2.29.7",
+    "@eslint/js": "^9.36.0",
     "@playwright/test": "^1.52.0",
     "@types/node": "^20.17.57",
     "@typescript-eslint/eslint-plugin": "^8.41.0",

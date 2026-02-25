@@ -35,6 +35,7 @@ describe("resolveConfig", () => {
     expect(config.docsDir).toBe(path.join(cwd, "docs"));
     expect(config.outDir).toBe(path.join(cwd, "dist"));
     expect(config.base).toBe("/from-flag");
+    expect(config.llms.enabled).toBe(true);
     expect(config.openapi[0]?.source).toBe(path.join(cwd, "docs/openapi.json"));
   });
 
@@ -48,7 +49,10 @@ describe("resolveConfig", () => {
         {
           docsDir: "./docs",
           outDir: "./site",
-          base: "/from-file"
+          base: "/from-file",
+          llms: {
+            enabled: false
+          }
         },
         null,
         2
@@ -68,5 +72,6 @@ describe("resolveConfig", () => {
     expect(config.docsDir).toBe(path.join(cwd, "docs"));
     expect(config.outDir).toBe(path.join(cwd, "site"));
     expect(config.base).toBe("/from-file");
+    expect(config.llms.enabled).toBe(false);
   });
 });

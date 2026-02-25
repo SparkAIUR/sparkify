@@ -1,6 +1,6 @@
 {
-  "name": "@sparkify/template-astro",
-  "version": "0.1.0",
+  "name": "sparkify-template-astro",
+  "version": "0.1.1",
   "license": "MIT",
   "type": "module",
   "files": [
@@ -14,8 +14,8 @@
     "provenance": true
   },
   "dependencies": {
-    "@astrojs/react": "^4.4.2",
     "@astrojs/mdx": "^4.3.13",
+    "@astrojs/react": "^4.4.2",
     "@mintlify/astro": "^1.0.0",
     "@mintlify/components": "^1.0.5",
     "@tailwindcss/vite": "^4.1.18",

@@ -71,6 +71,9 @@ describe("prepareWorkspace endpoint pages", () => {
         engine: "mintlify-astro",
         fallbackLegacyRenderer: true
       },
+      llms: {
+        enabled: true
+      },
       playground: {
         provider: "stoplight",
         auth: {
@@ -98,4 +101,3 @@ describe("prepareWorkspace endpoint pages", () => {
     await cleanupWorkspace(workspace.rootDir);
   });
 });
-

@@ -6,6 +6,7 @@ import type {
   ApiConfig,
   CompatConfig,
   ConfigOverrides,
+  LlmsConfig,
   RendererConfig,
   SparkifyConfigV1
 } from "./types.js";
@@ -57,6 +58,11 @@ const configSchema = z.object({
       fallbackLegacyRenderer: z.boolean().optional()
     })
     .optional(),
+  llms: z
+    .object({
+      enabled: z.boolean().optional()
+    })
+    .optional(),
   playground: z
     .object({
       provider: z.literal("stoplight").optional(),
@@ -98,6 +104,10 @@ const DEFAULT_RENDERER: RendererConfig = {
   fallbackLegacyRenderer: true
 };
 
+const DEFAULT_LLMS: LlmsConfig = {
+  enabled: true
+};
+
 const DEFAULTS: SparkifyConfigV1 = {
   docsDir: "./docs",
   outDir: "./dist",
@@ -110,6 +120,7 @@ const DEFAULTS: SparkifyConfigV1 = {
   compat: DEFAULT_COMPAT,
   api: DEFAULT_API,
   renderer: DEFAULT_RENDERER,
+  llms: DEFAULT_LLMS,
   playground: {
     provider: "stoplight",
     auth: {
@@ -169,6 +180,7 @@ function mergeConfig(base: SchemaConfig, incoming: ConfigOverrides): SchemaConfi
     compat,
     api,
     renderer,
+    llms,
     configPath,
     ...incomingTopLevel
   } = incoming;
@@ -187,6 +199,7 @@ function mergeConfig(base: SchemaConfig, incoming: ConfigOverrides): SchemaConfi
     compat: compat ? { ...(base.compat ?? {}), ...definedOnly(compat) } : base.compat,
     api: api ? { ...(base.api ?? {}), ...definedOnly(api) } : base.api,
     renderer: renderer ? { ...(base.renderer ?? {}), ...definedOnly(renderer) } : base.renderer,
+    llms: llms ? { ...(base.llms ?? {}), ...definedOnly(llms) } : base.llms,
     playground: playground
       ? {
           ...(base.playground ?? {}),
@@ -254,6 +267,9 @@ function toConfigAbsolute(cwd: string, config: SchemaConfig): SparkifyConfigV1 {
     fallbackLegacyRenderer:
       config.renderer?.fallbackLegacyRenderer ?? DEFAULTS.renderer.fallbackLegacyRenderer
   };
+  const llms: LlmsConfig = {
+    enabled: config.llms?.enabled ?? DEFAULTS.llms.enabled
+  };
   const defaultOpenApiRoute = api.mode === "single-page" ? "/api" : api.apiRoot;
 
   return {
@@ -283,6 +299,7 @@ function toConfigAbsolute(cwd: string, config: SchemaConfig): SparkifyConfigV1 {
     compat,
     api,
     renderer,
+    llms,
     playground: {
       provider: config.playground?.provider ?? DEFAULTS.playground.provider,
       tryItCorsProxy: config.playground?.tryItCorsProxy,

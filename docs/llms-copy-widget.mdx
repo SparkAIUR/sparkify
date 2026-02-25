@@ -1,0 +1,40 @@
+---
+title: "LLM Markdown Copy"
+description: "Use the built-in widget and llms artifacts to copy page/site markdown for AI workflows."
+---
+
+# LLM Markdown Copy
+
+`sparkify` generates LLM-friendly markdown outputs by default and exposes a floating copy widget in the bottom-right corner.
+
+## What gets generated
+
+| Path | Purpose |
+| --- | --- |
+| `/llms.txt` | Index of available markdown exports |
+| `/llms-full.txt` | Single-file markdown for the full navigable docs site |
+| `<route>/index.html.md` | Per-page markdown export (`/index.html.md` for home) |
+
+## In-site widget actions
+
+- `Copy Page as Markdown` copies the current page markdown export.
+- `Copy Site as Markdown` copies `/llms-full.txt`.
+
+The widget uses static files from your built docs output, so users can paste directly into LLM tools without scraping rendered HTML.
+
+## Disable if needed
+
+```json
+{
+  "llms": {
+    "enabled": false
+  }
+}
+```
+
+When disabled, llms artifacts are not emitted and the widget is hidden.
+
+## Deployment notes
+
+- Works with non-root base paths (`--base /repo`) because widget requests are base-path aware.
+- Site-level export scope follows navigable pages, including generated API pages.

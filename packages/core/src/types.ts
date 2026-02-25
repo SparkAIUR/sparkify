@@ -38,6 +38,10 @@ export interface RendererConfig {
   fallbackLegacyRenderer: boolean;
 }
 
+export interface LlmsConfig {
+  enabled: boolean;
+}
+
 export interface SparkifyConfigV1 {
   docsDir: string;
   outDir: string;
@@ -52,6 +56,7 @@ export interface SparkifyConfigV1 {
   compat: CompatConfig;
   api: ApiConfig;
   renderer: RendererConfig;
+  llms: LlmsConfig;
   playground: {
     provider: PlaygroundProvider;
     tryItCorsProxy?: string;
@@ -70,7 +75,7 @@ export interface SparkifyConfigV1 {
 }
 
 export interface ConfigOverrides
-  extends Partial<Omit<SparkifyConfigV1, "openapi" | "playground" | "fastapi" | "compat" | "api" | "renderer">> {
+  extends Partial<Omit<SparkifyConfigV1, "openapi" | "playground" | "fastapi" | "compat" | "api" | "renderer" | "llms">> {
   configPath?: string;
   openapi?: OpenApiConfigEntry[];
   fastapi?: Partial<FastApiConfig>;
@@ -78,6 +83,7 @@ export interface ConfigOverrides
   compat?: Partial<CompatConfig>;
   api?: Partial<ApiConfig>;
   renderer?: Partial<RendererConfig>;
+  llms?: Partial<LlmsConfig>;
 }
 
 export type DocsNavigationItem = string | DocsNavigationGroup;

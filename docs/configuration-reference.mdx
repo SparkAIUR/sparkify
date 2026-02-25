@@ -49,6 +49,9 @@ description: "Full sparkify.config.json field reference and examples."
     "engine": "mintlify-astro",
     "fallbackLegacyRenderer": true
   },
+  "llms": {
+    "enabled": true
+  },
   "playground": {
     "provider": "stoplight",
     "tryItCorsProxy": "https://proxy.example.com",
@@ -79,6 +82,7 @@ description: "Full sparkify.config.json field reference and examples."
 | `writeDocsJson` | boolean | `false` | Persist generated docs config to source |
 | `exclude` | string[] | preset globs | Exclusion rules for generated nav |
 | `dirTitleMap` | object | `{}` | Directory title overrides |
+| `llms.enabled` | boolean | `true` | Generate `/llms.txt`, `/llms-full.txt`, and per-page markdown exports |
 
 ## OpenAPI and FastAPI
 

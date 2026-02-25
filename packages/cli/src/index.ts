@@ -10,7 +10,7 @@ import {
   runDoctor,
   startDevServer,
   toExitCode
-} from "@sparkify/core";
+} from "sparkify-core";
 
 const require = createRequire(import.meta.url);
 const cliPackage = require("../package.json") as { version: string };

@@ -4,6 +4,13 @@
 
 Command name is `sparkify` (not `sparify`).
 
+## Highlights
+
+- Mintlify-style static docs build for GitHub Pages and self-hosting.
+- FastAPI/OpenAPI export and API reference rendering.
+- Default LLM markdown exports: `/llms.txt`, `/llms-full.txt`, and per-page `index.html.md`.
+- Built-in floating widget to copy current page or full site markdown.
+
 ## Use via `npx` (recommended)
 
 ### Prerequisites

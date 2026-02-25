@@ -13,8 +13,7 @@ import type {
   DocsNavbar,
   OpenApiBundle,
   PreparedWorkspace,
-  SparkifyConfigV1,
-  WorkspacePage
+  SparkifyConfigV1
 } from "./types.js";
 
 const HTTP_METHODS = ["get", "post", "put", "patch", "delete", "options", "head"] as const;
@@ -128,6 +127,18 @@ interface SiteMeta {
       }
     | null;
   footerSocials: Record<string, string>;
+}
+
+interface LlmsIndexMeta {
+  enabled: boolean;
+  siteMarkdownPath: string;
+  pageMarkdownByPath: Record<string, string>;
+  pageTitleByPath: Record<string, string>;
+}
+
+interface LlmsNavigationGroup {
+  group: string;
+  pagePaths: string[];
 }
 
 interface MintNavGroup {
@@ -317,13 +328,128 @@ function stripFrontmatter(content: string): string {
   return content.slice(endIndex + 4);
 }
 
+function stripFrontmatterForLlms(content: string): string {
+  return stripFrontmatter(content);
+}
+
+function stripTopLevelImportsExportsForLlms(content: string): string {
+  const lines = content.split(/\r?\n/);
+  const output: string[] = [];
+  let inCodeFence = false;
+  let skippingStatement = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    if (trimmed.startsWith("```")) {
+      inCodeFence = !inCodeFence;
+      output.push(line);
+      continue;
+    }
+
+    if (inCodeFence) {
+      output.push(line);
+      continue;
+    }
+
+    if (skippingStatement) {
+      if (trimmed.endsWith(";")) {
+        skippingStatement = false;
+      }
+      continue;
+    }
+
+    if (/^(import\s.+|export\s+\{.+)\s*$/.test(trimmed)) {
+      if (!trimmed.endsWith(";")) {
+        skippingStatement = true;
+      }
+      continue;
+    }
+
+    if (/^export\s+default\s+.+/.test(trimmed)) {
+      continue;
+    }
+
+    output.push(line);
+  }
+
+  return output.join("\n");
+}
+
+function ensureLeadingH1ForLlms(content: string, title: string): string {
+  const lines = content.split(/\r?\n/);
+  let inCodeFence = false;
+  let hasHeading = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    if (trimmed.startsWith("```")) {
+      inCodeFence = !inCodeFence;
+      continue;
+    }
+
+    if (inCodeFence || trimmed.length === 0) {
+      continue;
+    }
+
+    if (/^#{1,6}\s+\S+/.test(trimmed)) {
+      hasHeading = true;
+    }
+
+    break;
+  }
+
+  if (hasHeading) {
+    return content.trim();
+  }
+
+  const safeTitle = title.trim() || "Documentation";
+  return `# ${safeTitle}\n\n${content.trim()}`.trim();
+}
+
+function toLlmsMarkdownPathFromHref(href: string): string {
+  if (href === "/" || href.length === 0) {
+    return "/index.html.md";
+  }
+
+  return `${href.replace(/\/+$/, "")}/index.html.md`;
+}
+
+function withBasePath(base: string, href: string): string {
+  if (!base) {
+    return href;
+  }
+
+  if (href === "/") {
+    return `${base}/`;
+  }
+
+  return `${base}${href}`;
+}
+
+function toCanonicalPageUrl(site: string | undefined, base: string, href: string): string {
+  const withBase = withBasePath(base, href);
+  if (!site) {
+    return withBase;
+  }
+
+  return `${site.replace(/\/+$/, "")}${withBase}`;
+}
+
+function toLlmsMarkdown(content: string, title: string): string {
+  const withoutFrontmatter = stripFrontmatterForLlms(content);
+  const withoutImports = stripTopLevelImportsExportsForLlms(withoutFrontmatter);
+  return ensureLeadingH1ForLlms(withoutImports, title);
+}
+
 function summarizeForSearch(content: string): string {
   const withoutFrontmatter = stripFrontmatter(content);
   return withoutFrontmatter
     .replace(/```[\s\S]*?```/g, " ")
     .replace(/<[^>]+>/g, " ")
-    .replace(/\[[^\]]+\]\([^\)]+\)/g, " ")
-    .replace(/[`#>*_\-]/g, " ")
+    .replace(/\[[^\]]+\]\([^)]+\)/g, " ")
+    .replace(/[`#>*_-]/g, " ")
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 500);
@@ -440,7 +566,7 @@ function extractFrontmatterMeta(content: string): FrontmatterMeta {
 
 function getTemplateSkeletonRoot(): string {
   const require = createRequire(import.meta.url);
-  const pkgPath = require.resolve("@sparkify/template-astro/package.json");
+  const pkgPath = require.resolve("sparkify-template-astro/package.json");
   return path.join(path.dirname(pkgPath), "skeleton");
 }
 
@@ -765,6 +891,138 @@ function buildDocsConfigForRenderer(docsJson: DocsJson, openapiBundles: OpenApiB
   };
 }
 
+function buildLlmsNavigationGroups(docsJson: DocsJson, openapiBundles: OpenApiBundle[]): LlmsNavigationGroup[] {
+  const openApiRouteBySource = new Map<string, string>();
+  for (const bundle of openapiBundles) {
+    openApiRouteBySource.set(bundle.source, normalizePagePath(bundle.route));
+  }
+
+  const groups = docsJson.navigation
+    .map((group) => convertNavigationGroup(group, openApiRouteBySource))
+    .filter((group): group is MintNavGroup => Boolean(group));
+
+  const referencedPages = new Set<string>();
+  const llmsGroups: LlmsNavigationGroup[] = [];
+
+  for (const group of groups) {
+    const refs = new Set<string>();
+    collectPageRefsFromNavItems(group.pages, refs);
+    const normalizedRefs = [...refs].map((ref) => normalizeHref(ref));
+    for (const ref of refs) {
+      referencedPages.add(ref);
+    }
+    if (normalizedRefs.length > 0) {
+      llmsGroups.push({
+        group: group.group,
+        pagePaths: normalizedRefs
+      });
+    }
+  }
+
+  const missingApiRoutes = openapiBundles
+    .map((bundle) => normalizePagePath(bundle.route))
+    .filter((route) => route && !referencedPages.has(route));
+
+  if (missingApiRoutes.length > 0) {
+    llmsGroups.push({
+      group: "API",
+      pagePaths: missingApiRoutes.map((route) => normalizeHref(route))
+    });
+  }
+
+  return llmsGroups;
+}
+
+function renderLlmsTxt(
+  siteName: string,
+  navGroups: LlmsNavigationGroup[],
+  pageMarkdownByPath: Record<string, string>,
+  pageTitleByPath: Record<string, string>,
+  siteMarkdownPath: string
+): string {
+  const lines: string[] = [
+    `# ${siteName}`,
+    "",
+    "> LLM-friendly markdown exports for this documentation site.",
+    ""
+  ];
+
+  for (const group of navGroups) {
+    const entries = group.pagePaths
+      .map((href) => ({
+        href,
+        markdownPath: pageMarkdownByPath[href],
+        title: pageTitleByPath[href] ?? href
+      }))
+      .filter((entry) => Boolean(entry.markdownPath));
+
+    if (entries.length === 0) {
+      continue;
+    }
+
+    lines.push(`## ${group.group}`);
+    for (const entry of entries) {
+      lines.push(`- [${entry.title}](${entry.markdownPath})`);
+    }
+    lines.push("");
+  }
+
+  lines.push("## Optional");
+  lines.push(`- [Full Site as Markdown](${siteMarkdownPath})`);
+  lines.push("");
+
+  return lines.join("\n");
+}
+
+function renderLlmsFull(
+  siteName: string,
+  navGroups: LlmsNavigationGroup[],
+  pageTitleByPath: Record<string, string>,
+  pageMarkdownContentByPath: Record<string, string>,
+  site: string | undefined,
+  base: string
+): string {
+  const lines: string[] = [
+    `# ${siteName} — Full Markdown Export`,
+    "",
+    "This file aggregates markdown content for all navigable documentation pages.",
+    ""
+  ];
+
+  const seen = new Set<string>();
+
+  for (const group of navGroups) {
+    const entries = group.pagePaths.filter((href) => {
+      if (seen.has(href)) {
+        return false;
+      }
+      if (!pageMarkdownContentByPath[href]) {
+        return false;
+      }
+      seen.add(href);
+      return true;
+    });
+
+    if (entries.length === 0) {
+      continue;
+    }
+
+    lines.push(`## ${group.group}`);
+    lines.push("");
+
+    for (const href of entries) {
+      lines.push(`### ${pageTitleByPath[href] ?? href}`);
+      lines.push("");
+      lines.push(`Canonical URL: ${toCanonicalPageUrl(site, base, href)}`);
+      lines.push("");
+      lines.push(pageMarkdownContentByPath[href].trim());
+      lines.push("");
+    }
+  }
+
+  return lines.join("\n").trimEnd().concat("\n");
+}
+
 function renderOpenApiPlaygroundPage(bundle: OpenApiBundle, specUrl: string): string {
   return `---
 title: "${bundle.title.replaceAll("\"", "\\\"")}"
@@ -913,7 +1171,6 @@ export async function generateAstroProject(
   workspace: PreparedWorkspace,
   config: SparkifyConfigV1
 ): Promise<GenerateAstroProjectResult> {
-  void config;
   const templateSkeletonRoot = getTemplateSkeletonRoot();
   const projectRoot = path.join(workspace.rootDir, "astro-site");
   const docsRoot = path.join(projectRoot, "docs");
@@ -941,6 +1198,11 @@ export async function generateAstroProject(
   const writtenPagePaths = new Set<string>();
   const titleMap: Record<string, string> = {};
   const pageMetaByHref: Record<string, PageMeta> = {};
+  const llmsEnabled = config.llms.enabled;
+  const llmsSiteMarkdownPath = "/llms-full.txt";
+  const llmsPageMarkdownByPath: Record<string, string> = {};
+  const llmsPageTitleByPath: Record<string, string> = {};
+  const llmsPageMarkdownContentByPath: Record<string, string> = {};
 
   for (const page of workspace.pages) {
     if (writtenPagePaths.has(page.pagePath)) {
@@ -965,6 +1227,7 @@ export async function generateAstroProject(
     await fs.writeFile(destination, transformedContent, "utf8");
 
     writtenPagePaths.add(page.pagePath);
+    const pageHref = normalizeHref(page.pagePath);
     const navTitle = frontmatter.sidebarTitle || frontmatter.title || page.title;
     titleMap[page.pagePath] = navTitle;
 
@@ -986,12 +1249,23 @@ export async function generateAstroProject(
       }
     }
     if (Object.keys(pageMeta).length > 0) {
-      pageMetaByHref[normalizeHref(page.pagePath)] = pageMeta;
+      pageMetaByHref[pageHref] = pageMeta;
+    }
+
+    if (llmsEnabled) {
+      const llmsMarkdown = toLlmsMarkdown(contentRaw, frontmatter.title || page.title).trimEnd();
+      const llmsMarkdownPath = toLlmsMarkdownPathFromHref(pageHref);
+      const llmsAbsolutePath = path.join(publicRoot, llmsMarkdownPath.replace(/^\/+/, ""));
+      await fs.mkdir(path.dirname(llmsAbsolutePath), { recursive: true });
+      await fs.writeFile(llmsAbsolutePath, `${llmsMarkdown}\n`, "utf8");
+      llmsPageMarkdownByPath[pageHref] = llmsMarkdownPath;
+      llmsPageTitleByPath[pageHref] = frontmatter.title || page.title;
+      llmsPageMarkdownContentByPath[pageHref] = llmsMarkdown;
     }
 
     searchIndex.push({
       id: page.pagePath,
-      href: normalizeHref(page.pagePath),
+      href: pageHref,
       title: frontmatter.title || page.title,
       content: summarizeForSearch(transformedContent)
     });
@@ -1014,12 +1288,24 @@ export async function generateAstroProject(
 
       writtenPagePaths.add(routePath);
       titleMap[routePath] = bundle.title;
+      const routeHref = normalizeHref(routePath);
       searchIndex.push({
         id: routePath,
-        href: normalizeHref(routePath),
+        href: routeHref,
         title: bundle.title,
         content: "Interactive API playground"
       });
+
+      if (llmsEnabled) {
+        const llmsMarkdown = toLlmsMarkdown(mdx, bundle.title).trimEnd();
+        const llmsMarkdownPath = toLlmsMarkdownPathFromHref(routeHref);
+        const llmsAbsolutePath = path.join(publicRoot, llmsMarkdownPath.replace(/^\/+/, ""));
+        await fs.mkdir(path.dirname(llmsAbsolutePath), { recursive: true });
+        await fs.writeFile(llmsAbsolutePath, `${llmsMarkdown}\n`, "utf8");
+        llmsPageMarkdownByPath[routeHref] = llmsMarkdownPath;
+        llmsPageTitleByPath[routeHref] = bundle.title;
+        llmsPageMarkdownContentByPath[routeHref] = llmsMarkdown;
+      }
     }
   }
 
@@ -1049,9 +1335,51 @@ export async function generateAstroProject(
   await fs.writeFile(path.join(docsRoot, "docs.json"), `${JSON.stringify(docsConfig, null, 2)}\n`, "utf8");
 
   const siteMeta = buildSiteMeta(workspace.docsJson);
+  const llmsNavigationGroups = buildLlmsNavigationGroups(workspace.docsJson, workspace.openapiBundles);
+  const llmsIndex: LlmsIndexMeta = llmsEnabled
+    ? {
+        enabled: true,
+        siteMarkdownPath: llmsSiteMarkdownPath,
+        pageMarkdownByPath: llmsPageMarkdownByPath,
+        pageTitleByPath: llmsPageTitleByPath
+      }
+    : {
+        enabled: false,
+        siteMarkdownPath: "",
+        pageMarkdownByPath: {},
+        pageTitleByPath: {}
+      };
+
+  if (llmsEnabled) {
+    const llmsTxt = renderLlmsTxt(
+      siteMeta.name,
+      llmsNavigationGroups,
+      llmsPageMarkdownByPath,
+      llmsPageTitleByPath,
+      llmsSiteMarkdownPath
+    );
+    const llmsFull = renderLlmsFull(
+      siteMeta.name,
+      llmsNavigationGroups,
+      llmsPageTitleByPath,
+      llmsPageMarkdownContentByPath,
+      config.site,
+      config.base
+    );
+
+    await fs.writeFile(path.join(publicRoot, "llms.txt"), llmsTxt, "utf8");
+    await fs.writeFile(path.join(publicRoot, "llms-full.txt"), llmsFull, "utf8");
+  }
+
   await fs.writeFile(
     path.join(projectRoot, "src/generated/site-meta.json"),
     `${JSON.stringify(siteMeta, null, 2)}\n`,
+    "utf8"
+  );
+
+  await fs.writeFile(
+    path.join(projectRoot, "src/generated/llms-index.json"),
+    `${JSON.stringify(llmsIndex, null, 2)}\n`,
     "utf8"
   );
 

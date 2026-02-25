@@ -43,6 +43,9 @@ describe("prepareWorkspace", () => {
         engine: "mintlify-astro",
         fallbackLegacyRenderer: true
       },
+      llms: {
+        enabled: true
+      },
       playground: {
         provider: "stoplight",
         auth: {

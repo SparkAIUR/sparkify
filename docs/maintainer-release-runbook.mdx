@@ -48,6 +48,8 @@ npm run version-packages
 
 Commit version bumps and changelog updates, then push to `main` to let `release.yml` publish via Changesets.
 
+After publish succeeds, `release.yml` also rebuilds `./docs` using the published `sparkify` package and deploys to GitHub Pages.
+
 ## Post-publish smoke test (clean temp project)
 
 ```bash

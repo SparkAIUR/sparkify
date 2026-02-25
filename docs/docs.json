@@ -36,7 +36,7 @@
     },
     {
       "group": "Reference",
-      "pages": ["cli", "api-playground", "troubleshooting", "maintainer-release-runbook"]
+      "pages": ["cli", "llms-copy-widget", "api-playground", "troubleshooting", "maintainer-release-runbook"]
     }
   ]
 }

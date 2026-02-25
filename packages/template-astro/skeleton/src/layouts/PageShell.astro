@@ -11,10 +11,12 @@ import TableOfContents from "../components/TableOfContents";
 import ApiOperationHeader from "../components/ApiOperationHeader";
 import ApiOperationPanel from "../components/ApiOperationPanel";
 import CodeBlockEnhancer from "../components/CodeBlockEnhancer";
+import CopyMarkdownWidget from "../components/CopyMarkdownWidget";
 import operations from "../generated/openapi-operations.json";
 import siteMeta from "../generated/site-meta.json";
 import titleMap from "../generated/title-map.json";
 import pageMeta from "../generated/page-meta.json";
+import llmsIndex from "../generated/llms-index.json";
 
 interface ApiOperation {
   method: string;
@@ -37,6 +39,13 @@ interface PageMetaEntry {
 interface ApiDescriptor {
   method: string;
   path: string;
+}
+
+interface LlmsIndexMeta {
+  enabled: boolean;
+  siteMarkdownPath: string;
+  pageMarkdownByPath: Record<string, string>;
+  pageTitleByPath: Record<string, string>;
 }
 
 interface Props {
@@ -126,6 +135,8 @@ const apiPlaygroundHref =
   resolvedApiOperation?.openapiRoute || openapiRoute || "/api-reference";
 
 const primaryColor = docsConfig.colors?.primary || "#7c3aed";
+const baseUrl = import.meta.env.BASE_URL || "/";
+const llmsIndexMeta = llmsIndex as LlmsIndexMeta;
 const faviconHref =
   typeof docsConfig.favicon === "string"
     ? docsConfig.favicon
@@ -209,4 +220,18 @@ const faviconHref =
       </div>
     </div>
   </div>
+
+  {
+    llmsIndexMeta.enabled && (
+      <div class:list={["fixed bottom-6 right-4 z-[55]", isApiPage ? "xl:right-[30rem]" : "xl:right-6"]}>
+        <CopyMarkdownWidget
+          currentPath={currentPath}
+          baseUrl={baseUrl}
+          siteName={siteMeta.name}
+          llmsIndex={llmsIndexMeta}
+          client:load
+        />
+      </div>
+    )
+  }
 </Layout>
