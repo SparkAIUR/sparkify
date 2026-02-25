@@ -1,0 +1,273 @@
+name: "sparkify"
+description: "Build docs with sparkify, with optional FastAPI export and GitHub Pages upload/deploy."
+
+inputs:
+  docs-dir:
+    description: "Docs directory to build"
+    required: false
+    default: "./docs"
+  config-path:
+    description: "Optional path to sparkify config file"
+    required: false
+    default: ""
+  out-dir:
+    description: "Output directory for built docs"
+    required: false
+    default: "./dist"
+  site:
+    description: "Canonical site URL (defaults to https://<owner>.github.io)"
+    required: false
+    default: ""
+  base:
+    description: "Base path (defaults to /<repo>)"
+    required: false
+    default: ""
+  strict:
+    description: "Fail build on warnings (true/false)"
+    required: false
+    default: "false"
+  debug:
+    description: "Enable debug logs (true/false)"
+    required: false
+    default: "false"
+  node-version:
+    description: "Node.js version used by the action"
+    required: false
+    default: "20"
+  sparkify-version:
+    description: "sparkify npm version. Use 'repo' to read version from this action ref."
+    required: false
+    default: "repo"
+  fastapi-app:
+    description: "FastAPI app target (<module>:<app>). Enables optional export-openapi step."
+    required: false
+    default: ""
+  fastapi-cwd:
+    description: "Working directory for FastAPI export"
+    required: false
+    default: "."
+  fastapi-out:
+    description: "Output file path for exported OpenAPI schema"
+    required: false
+    default: ""
+  fastapi-server-url:
+    description: "Optional OpenAPI servers[0].url override for export-openapi"
+    required: false
+    default: ""
+  fastapi-env-file:
+    description: "Optional env file path for export-openapi"
+    required: false
+    default: ""
+  fastapi-pythonpath:
+    description: "Optional PYTHONPATH prefix for export-openapi"
+    required: false
+    default: ""
+  python-version:
+    description: "Python version used for optional FastAPI export"
+    required: false
+    default: "3.11"
+  python-executable:
+    description: "Python executable passed to export-openapi"
+    required: false
+    default: "python"
+  python-deps-command:
+    description: "Command used to install Python dependencies when fastapi-app is set"
+    required: false
+    default: "pip install fastapi"
+  upload-pages-artifact:
+    description: "Upload out-dir via actions/upload-pages-artifact@v3 (true/false)"
+    required: false
+    default: "false"
+  deploy-pages:
+    description: "Deploy uploaded Pages artifact via actions/deploy-pages@v4 (true/false)"
+    required: false
+    default: "false"
+
+outputs:
+  resolved-sparkify-version:
+    description: "Resolved sparkify npm version used by this action"
+    value: ${{ steps.resolve.outputs.sparkify-version }}
+  resolved-site:
+    description: "Resolved site URL used during build"
+    value: ${{ steps.resolve.outputs.site }}
+  resolved-base:
+    description: "Resolved base path used during build"
+    value: ${{ steps.resolve.outputs.base }}
+  resolved-out-dir:
+    description: "Resolved output directory used during build"
+    value: ${{ steps.resolve.outputs.out-dir }}
+  page-url:
+    description: "GitHub Pages URL returned by deploy-pages when deploy-pages=true"
+    value: ${{ steps.deploy.outputs.page_url }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Resolve inputs and validate
+      id: resolve
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        docs_dir="${{ inputs.docs-dir }}"
+        config_path="${{ inputs.config-path }}"
+        out_dir="${{ inputs.out-dir }}"
+
+        strict="$(echo "${{ inputs.strict }}" | tr '[:upper:]' '[:lower:]')"
+        debug="$(echo "${{ inputs.debug }}" | tr '[:upper:]' '[:lower:]')"
+        upload_pages="$(echo "${{ inputs.upload-pages-artifact }}" | tr '[:upper:]' '[:lower:]')"
+        deploy_pages="$(echo "${{ inputs.deploy-pages }}" | tr '[:upper:]' '[:lower:]')"
+
+        for value_name in strict debug upload_pages deploy_pages; do
+          value="${!value_name}"
+          if [[ "$value" != "true" && "$value" != "false" ]]; then
+            echo "::error::${value_name} must be 'true' or 'false', got '${value}'."
+            exit 1
+          fi
+        done
+
+        if [[ "$deploy_pages" == "true" && "$upload_pages" != "true" ]]; then
+          echo "::error::deploy-pages=true requires upload-pages-artifact=true."
+          exit 1
+        fi
+
+        if [[ ! -d "$docs_dir" ]]; then
+          echo "::error::docs directory '$docs_dir' does not exist. Ensure actions/checkout runs before this action."
+          exit 1
+        fi
+
+        sparkify_version_input="${{ inputs.sparkify-version }}"
+        if [[ "$sparkify_version_input" == "repo" ]]; then
+          sparkify_version="$(node -e 'const fs = require("node:fs"); const path = require("node:path"); const actionPath = process.env.GITHUB_ACTION_PATH; const pkgPath = path.join(actionPath, "packages/cli/package.json"); const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8")); process.stdout.write(pkg.version);')"
+        else
+          sparkify_version="$sparkify_version_input"
+        fi
+
+        if [[ -z "$sparkify_version" ]]; then
+          echo "::error::Unable to resolve sparkify version."
+          exit 1
+        fi
+
+        resolved_site="${{ inputs.site }}"
+        if [[ -z "$resolved_site" ]]; then
+          resolved_site="https://${GITHUB_REPOSITORY_OWNER}.github.io"
+        fi
+
+        resolved_base="${{ inputs.base }}"
+        if [[ -z "$resolved_base" ]]; then
+          resolved_base="/${GITHUB_REPOSITORY#*/}"
+        fi
+
+        if [[ "$resolved_base" == "/" ]]; then
+          resolved_base=""
+        elif [[ -n "$resolved_base" ]]; then
+          [[ "$resolved_base" == /* ]] || resolved_base="/$resolved_base"
+          resolved_base="${resolved_base%/}"
+        fi
+
+        resolved_fastapi_out="${{ inputs.fastapi-out }}"
+        if [[ -z "$resolved_fastapi_out" ]]; then
+          resolved_fastapi_out="${docs_dir%/}/openapi.json"
+        fi
+
+        echo "sparkify-version=$sparkify_version" >> "$GITHUB_OUTPUT"
+        echo "site=$resolved_site" >> "$GITHUB_OUTPUT"
+        echo "base=$resolved_base" >> "$GITHUB_OUTPUT"
+        echo "out-dir=$out_dir" >> "$GITHUB_OUTPUT"
+        echo "docs-dir=$docs_dir" >> "$GITHUB_OUTPUT"
+        echo "config-path=$config_path" >> "$GITHUB_OUTPUT"
+        echo "strict=$strict" >> "$GITHUB_OUTPUT"
+        echo "debug=$debug" >> "$GITHUB_OUTPUT"
+        echo "upload-pages=$upload_pages" >> "$GITHUB_OUTPUT"
+        echo "deploy-pages=$deploy_pages" >> "$GITHUB_OUTPUT"
+        echo "fastapi-out=$resolved_fastapi_out" >> "$GITHUB_OUTPUT"
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - name: Install template runtime dependencies
+      shell: bash
+      run: |
+        set -euo pipefail
+        npm install --no-save --no-package-lock "sparkify-template-astro@${{ steps.resolve.outputs.sparkify-version }}"
+
+    - name: Set up Python
+      if: ${{ inputs.fastapi-app != '' }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install Python dependencies
+      if: ${{ inputs.fastapi-app != '' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        ${{ inputs.python-deps-command }}
+
+    - name: Export OpenAPI from FastAPI
+      if: ${{ inputs.fastapi-app != '' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        args=(
+          exec
+          --yes
+          --package "sparkify@${{ steps.resolve.outputs.sparkify-version }}"
+          --
+          sparkify
+          export-openapi
+          --fastapi "${{ inputs.fastapi-app }}"
+          --cwd "${{ inputs.fastapi-cwd }}"
+          --out "${{ steps.resolve.outputs.fastapi-out }}"
+          --python "${{ inputs.python-executable }}"
+        )
+        if [[ -n "${{ inputs.fastapi-server-url }}" ]]; then
+          args+=(--server-url "${{ inputs.fastapi-server-url }}")
+        fi
+        if [[ -n "${{ inputs.fastapi-env-file }}" ]]; then
+          args+=(--env-file "${{ inputs.fastapi-env-file }}")
+        fi
+        if [[ -n "${{ inputs.fastapi-pythonpath }}" ]]; then
+          args+=(--pythonpath "${{ inputs.fastapi-pythonpath }}")
+        fi
+        npm "${args[@]}"
+
+    - name: Build docs with sparkify
+      shell: bash
+      run: |
+        set -euo pipefail
+        args=(
+          exec
+          --yes
+          --package "sparkify@${{ steps.resolve.outputs.sparkify-version }}"
+          --
+          sparkify
+          build
+          --docs-dir "${{ steps.resolve.outputs.docs-dir }}"
+          --out "${{ steps.resolve.outputs.out-dir }}"
+          --site "${{ steps.resolve.outputs.site }}"
+          --base "${{ steps.resolve.outputs.base }}"
+        )
+        if [[ -n "${{ steps.resolve.outputs.config-path }}" ]]; then
+          args+=(--config "${{ steps.resolve.outputs.config-path }}")
+        fi
+        if [[ "${{ steps.resolve.outputs.strict }}" == "true" ]]; then
+          args+=(--strict)
+        fi
+        if [[ "${{ steps.resolve.outputs.debug }}" == "true" ]]; then
+          args+=(--debug)
+        fi
+        npm "${args[@]}"
+
+    - name: Upload GitHub Pages artifact
+      if: ${{ steps.resolve.outputs.upload-pages == 'true' }}
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: ${{ steps.resolve.outputs.out-dir }}
+
+    - name: Deploy GitHub Pages artifact
+      id: deploy
+      if: ${{ steps.resolve.outputs.deploy-pages == 'true' }}
+      uses: actions/deploy-pages@v4

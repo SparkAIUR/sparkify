@@ -29,6 +29,62 @@ jobs:
           echo "$pack_output" | grep -q "package.json"
       - run: node packages/cli/dist/bin.js build --docs-dir ./docs --out ./dist-ci --site https://example.github.io --base /sparkify --strict
 
+  action-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: sparkify-action
+        uses: ./
+        with:
+          docs-dir: ./docs
+          out-dir: ./dist-action-smoke
+      - run: test -f ./dist-action-smoke/index.html
+      - name: Verify action output defaults
+        run: |
+          set -euo pipefail
+          expected_version="$(node -e 'const fs = require("node:fs"); const pkg = JSON.parse(fs.readFileSync("packages/cli/package.json", "utf8")); process.stdout.write(pkg.version);')"
+          actual_version="${{ steps.sparkify-action.outputs.resolved-sparkify-version }}"
+          if [[ "$actual_version" != "$expected_version" ]]; then
+            echo "Expected resolved-sparkify-version '$expected_version' but got '$actual_version'"
+            exit 1
+          fi
+
+          expected_site="https://${GITHUB_REPOSITORY_OWNER}.github.io"
+          actual_site="${{ steps.sparkify-action.outputs.resolved-site }}"
+          if [[ "$actual_site" != "$expected_site" ]]; then
+            echo "Expected resolved-site '$expected_site' but got '$actual_site'"
+            exit 1
+          fi
+
+          expected_base="/${GITHUB_REPOSITORY#*/}"
+          actual_base="${{ steps.sparkify-action.outputs.resolved-base }}"
+          if [[ "$actual_base" != "$expected_base" ]]; then
+            echo "Expected resolved-base '$expected_base' but got '$actual_base'"
+            exit 1
+          fi
+
+          expected_out_dir="./dist-action-smoke"
+          actual_out_dir="${{ steps.sparkify-action.outputs.resolved-out-dir }}"
+          if [[ "$actual_out_dir" != "$expected_out_dir" ]]; then
+            echo "Expected resolved-out-dir '$expected_out_dir' but got '$actual_out_dir'"
+            exit 1
+          fi
+
+  action-fastapi-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./
+        with:
+          docs-dir: ./examples/fastapi-demo/docs
+          out-dir: ./dist-action-fastapi-smoke
+          base: /sparkify-fastapi-smoke
+          fastapi-app: app.main:app
+          fastapi-cwd: ./examples/fastapi-demo
+          fastapi-out: ./examples/fastapi-demo/docs/openapi.json
+      - run: test -f ./examples/fastapi-demo/docs/openapi.json
+      - run: test -f ./dist-action-fastapi-smoke/index.html
+
   fastapi-export:
     runs-on: ubuntu-latest
     strategy:

@@ -42,6 +42,21 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
 
+  update-action-major-tag:
+    runs-on: ubuntu-latest
+    needs: release
+    if: needs.release.outputs.published == 'true' && contains(needs.release.outputs.publishedPackages, '"name":"sparkify"')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Move action major tag (v1) to release commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -f v1 "$GITHUB_SHA"
+          git push origin refs/tags/v1 --force
+
   build-docs:
     runs-on: ubuntu-latest
     needs: release

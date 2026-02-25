@@ -26,6 +26,63 @@ npx sparkify dev
 npx sparkify build --site https://<user>.github.io --base /<repo>
 ```
 
+## Use as a GitHub Action
+
+`sparkify` can be used directly in GitHub Actions with `uses: SparkAIUR/sparkify@v1`.
+
+### Build-only (default behavior)
+
+```yaml
+name: Build Docs
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: SparkAIUR/sparkify@v1
+        with:
+          docs-dir: ./docs
+          out-dir: ./dist
+```
+
+### Full GitHub Pages pipeline (upload + deploy)
+
+```yaml
+name: Deploy Docs
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.sparkify.outputs.page-url }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: sparkify
+        uses: SparkAIUR/sparkify@v1
+        with:
+          docs-dir: ./docs
+          out-dir: ./dist
+          upload-pages-artifact: "true"
+          deploy-pages: "true"
+```
+
+For FastAPI export, add `fastapi-app`, `fastapi-cwd`, and optional `fastapi-out` in the action `with` block.
+
 ### CLI commands
 
 - `npx sparkify init`

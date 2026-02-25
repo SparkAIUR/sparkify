@@ -5,6 +5,7 @@ on:
   push:
     branches: [main]
     paths:
+      - "action.yml"
       - "examples/fastapi-demo/**"
       - "packages/**"
       - ".github/workflows/pages-demo.yml"
@@ -23,30 +24,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: ./
         with:
-          node-version: 20
-          cache: npm
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - run: npm ci
-      - run: pip install fastapi
-      - run: npm run build
-      - run: |
-          node packages/cli/dist/bin.js export-openapi \
-            --fastapi "app.main:app" \
-            --cwd ./examples/fastapi-demo \
-            --out ./examples/fastapi-demo/docs/openapi.json
-      - run: |
-          node packages/cli/dist/bin.js build \
-            --docs-dir ./examples/fastapi-demo/docs \
-            --out ./examples/fastapi-demo/dist \
-            --site https://${{ github.repository_owner }}.github.io \
-            --base /${{ github.event.repository.name }}/demo
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: examples/fastapi-demo/dist
+          docs-dir: ./examples/fastapi-demo/docs
+          out-dir: ./examples/fastapi-demo/dist
+          base: /${{ github.event.repository.name }}/demo
+          fastapi-app: app.main:app
+          fastapi-cwd: ./examples/fastapi-demo
+          fastapi-out: ./examples/fastapi-demo/docs/openapi.json
+          upload-pages-artifact: "true"
 
   deploy:
     runs-on: ubuntu-latest

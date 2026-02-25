@@ -50,6 +50,18 @@ Commit version bumps and changelog updates, then push to `main` to let `release.
 
 After publish succeeds, `release.yml` also rebuilds `./docs` using the published `sparkify` package and deploys to GitHub Pages.
 
+When `sparkify` is part of the published package set, `release.yml` also moves the major action tag `v1` to the release commit so consumers can keep using:
+
+```yaml
+- uses: SparkAIUR/sparkify@v1
+```
+
+You can verify the major tag target with:
+
+```bash
+git ls-remote --tags origin v1
+```
+
 ## Post-publish smoke test (clean temp project)
 
 ```bash
