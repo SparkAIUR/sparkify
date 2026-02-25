@@ -1,6 +1,6 @@
 {
   "name": "sparkify-core",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "license": "MIT",
   "type": "module",
   "main": "dist/index.js",
@@ -27,7 +27,7 @@
     "fast-glob": "^3.3.3",
     "minimatch": "^10.0.3",
     "sparkify-playground-stoplight": "0.2.0",
-    "sparkify-template-astro": "0.2.1",
+    "sparkify-template-astro": "0.2.2",
     "yaml": "^2.8.1",
     "zod": "^4.1.12"
   }

@@ -1,5 +1,11 @@
 # sparkify-template-astro
 
+## 0.2.2
+
+### Patch Changes
+
+- 46ebad9: Fix the LLM Markdown copy widget hover behavior so expanded actions stay clickable during pointer transfer, with delayed close and touch-safe toggle behavior.
+
 ## 0.2.1
 
 ### Patch Changes
