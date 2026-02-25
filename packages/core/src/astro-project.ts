@@ -224,8 +224,12 @@ function convertMermaidFences(content: string): string {
 }
 
 function escapeTemplateBraces(content: string): string {
-  const chunks = content.split(/(```[\s\S]*?```)/g);
-  return chunks
+  const frontmatterMatch = content.match(/^---\s*\n[\s\S]*?\n---\s*(?:\n|$)/);
+  const frontmatter = frontmatterMatch ? frontmatterMatch[0] : "";
+  const body = frontmatterMatch ? content.slice(frontmatter.length) : content;
+
+  const chunks = body.split(/(```[\s\S]*?```)/g);
+  const escapedBody = chunks
     .map((chunk, index) => {
       if (index % 2 === 1) {
         return chunk;
@@ -234,6 +238,8 @@ function escapeTemplateBraces(content: string): string {
       return chunk.replace(/(?<![=\\])\{([A-Za-z0-9_.-]+)\}/g, "\\{$1\\}");
     })
     .join("");
+
+  return `${frontmatter}${escapedBody}`;
 }
 
 function parseImportedNames(content: string): Set<string> {

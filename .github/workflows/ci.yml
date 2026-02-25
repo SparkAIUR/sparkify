@@ -46,6 +46,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: npm ci
       - run: pip install fastapi
+      - run: npm run build
       - run: node packages/cli/dist/bin.js export-openapi --fastapi "app.main:app" --cwd ./examples/fastapi-demo --out ./examples/fastapi-demo/docs/openapi.json
 
   e2e:
