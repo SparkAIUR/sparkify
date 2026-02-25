@@ -451,11 +451,14 @@ function toLlmsMarkdown(content: string, title: string): string {
 
 function summarizeForSearch(content: string): string {
   const withoutFrontmatter = stripFrontmatter(content);
-  return withoutFrontmatter
+  const withoutImports = stripTopLevelImportsExportsForLlms(withoutFrontmatter);
+  return withoutImports
     .replace(/```[\s\S]*?```/g, " ")
     .replace(/<[^>]+>/g, " ")
-    .replace(/\[[^\]]+\]\([^)]+\)/g, " ")
-    .replace(/[`#>*_-]/g, " ")
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, " $1 ")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, " $1 ")
+    .replace(/[`#>*_~-]/g, " ")
+    .replace(/\|/g, " ")
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 500);
@@ -1273,7 +1276,7 @@ export async function generateAstroProject(
       id: page.pagePath,
       href: pageHref,
       title: frontmatter.title || page.title,
-      content: summarizeForSearch(transformedContent)
+      content: summarizeForSearch(contentRaw)
     });
   }
 

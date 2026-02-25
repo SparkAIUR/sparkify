@@ -19,7 +19,7 @@ async function setupFixture(): Promise<{ rootDir: string; docsDir: string; openA
 
   await fs.writeFile(
     path.join(docsDir, "guide/setup.mdx"),
-    `---\ntitle: "Setup"\n---\n\n# Setup\n\n\`\`\`bash\necho "hello"\n\`\`\`\n`,
+    `---\ntitle: "Setup"\n---\n\nimport { Card } from "../.mintlify/components/setup/CardGroup 1.jsx";\n\n# Setup\n\n<Card title="Quick setup" />\nUse [Getting Started](/getting-started) for prerequisites.\n\n\`\`\`bash\necho "hello"\n\`\`\`\n`,
     "utf8"
   );
 
@@ -174,6 +174,34 @@ describe("generateAstroProject llms exports", () => {
       expect(llmsIndex.enabled).toBe(false);
       expect(llmsIndex.siteMarkdownPath).toBe("");
       expect(Object.keys(llmsIndex.pageMarkdownByPath)).toHaveLength(0);
+    } finally {
+      await cleanupWorkspace(workspace.rootDir);
+    }
+  });
+
+  it("builds clean search snippets from source docs content", async () => {
+    const fixture = await setupFixture();
+    const config = createConfig(fixture, true);
+    const workspace = await prepareWorkspace(config, { mode: "build" });
+
+    try {
+      const project = await generateAstroProject(workspace, config);
+      const searchIndexRaw = await fs.readFile(
+        path.join(project.projectRoot, "src", "generated", "search-index.json"),
+        "utf8"
+      );
+      const searchIndex = JSON.parse(searchIndexRaw) as Array<{
+        href: string;
+        title: string;
+        content: string;
+      }>;
+
+      const setupEntry = searchIndex.find((entry) => entry.href === "/guide/setup");
+      expect(setupEntry).toBeDefined();
+      expect(setupEntry?.title).toBe("Setup");
+      expect(setupEntry?.content).toContain("Getting Started");
+      expect(setupEntry?.content).not.toContain("import {");
+      expect(setupEntry?.content).not.toContain(".mintlify/components");
     } finally {
       await cleanupWorkspace(workspace.rootDir);
     }
