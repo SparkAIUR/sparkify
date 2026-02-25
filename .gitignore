@@ -13,3 +13,4 @@ playwright-report/
 *.tsbuildinfo
 /.playwright-cli
 /dist-gh-pages
+*.pyc
