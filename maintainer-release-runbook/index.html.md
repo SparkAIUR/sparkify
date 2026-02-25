@@ -1,0 +1,56 @@
+# Maintainer Release Runbook
+
+This page is for `sparkify` maintainers publishing the monorepo packages.
+
+## Preconditions
+
+- npm token available in local `.env` as `NPM_TOKEN`
+- npm identity matches expected publisher account
+- branch is up to date with `main`
+
+## Pre-release validation
+
+```bash
+npm ci
+npm run dev -- --help
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+npm pack --dry-run --workspace sparkify
+```
+
+Verify the `sparkify` tarball contains:
+
+- `README.md`
+- `LICENSE`
+- `dist/*`
+- `package.json`
+
+## npm auth checks
+
+```bash
+make npm-whoami
+make publish-dry-run
+```
+
+## Versioning and release
+
+```bash
+npm run changeset
+npm run version-packages
+```
+
+Commit version bumps and changelog updates, then push to `main` to let `release.yml` publish via Changesets.
+
+After publish succeeds, `release.yml` also rebuilds `./docs` using the published `sparkify` package and deploys to GitHub Pages.
+
+## Post-publish smoke test (clean temp project)
+
+```bash
+tmpdir="$(mktemp -d)"
+cd "$tmpdir"
+npx sparkify --help
+```
+
+Expected result: command help renders and exits `0` without local repository context.

@@ -1,0 +1,1423 @@
+# sparkify — Full Markdown Export
+
+This file aggregates markdown content for all navigable documentation pages.
+
+## Getting Started
+
+### sparkify
+
+Canonical URL: https://SparkAIUR.github.io/sparkify/
+
+# sparkify
+
+Build static docs from Mintlify-style sources, with endpoint-level OpenAPI rendering and FastAPI export support.
+
+<Info>
+`v0.1.0` runtime contract: Node `20.x` and Python `3.10`-`3.12` (Python required only for `export-openapi`).
+</Info>
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/getting-started">
+    Start with `npx` and publish your first docs build in minutes.
+  </Card>
+  <Card title="Configuration" icon="sliders" href="/configuration-overview">
+    Learn precedence, defaults, compatibility toggles, and API/playground options.
+  </Card>
+  <Card title="Deployment" icon="cloud-arrow-up" href="/deploy-github-pages">
+    Publish to GitHub Pages or ship static docs in containers.
+  </Card>
+  <Card title="Examples" icon="images" href="/examples-pipeshub-full">
+    See a full PipeHub implementation plus AuthentiVoice and Frauditor references.
+  </Card>
+</CardGroup>
+
+## Commands
+
+```bash
+sparkify init
+sparkify dev
+sparkify build
+sparkify doctor
+sparkify export-openapi
+```
+
+## Typical workflow
+
+<Steps>
+  <Step title="Scaffold docs source">
+    Run `npx sparkify init` to create starter docs files and a base config.
+  </Step>
+  <Step title="Develop and validate">
+    Run `npx sparkify dev` and use `npx sparkify doctor` to verify environment and config source.
+  </Step>
+  <Step title="Build for deployment">
+    Run `npx sparkify build --site <url> --base /<repo>` and publish `dist/`.
+  </Step>
+</Steps>
+
+## What `v0.1.0` supports
+
+| Capability | Status |
+| --- | --- |
+| `docs.json` input | Supported |
+| `mint.json` input | Supported via compat layer |
+| Missing docs config fallback | Generated navigation |
+| Endpoint-page API reference | Default mode |
+| Single-page API playground | Optional mode |
+| FastAPI OpenAPI export | Supported |
+| Browser-safe OAuth2 flows | PKCE + Device Code |
+
+## Start here
+
+- Use `/getting-started` for first build.
+- Use `/configuration-reference` for full config schema.
+- Use `/deploy-github-pages` for CI-based publishing.
+- Use `/examples-pipeshub-full` for a production-like case study.
+- Maintainers: use `/maintainer-release-runbook` for publish workflow.
+
+### Getting Started
+
+Canonical URL: https://SparkAIUR.github.io/sparkify/getting-started
+
+# Getting Started
+
+<Note>
+Primary onboarding path uses `npx`, so you do not need a global install.
+</Note>
+
+## Prerequisites
+
+<CardGroup cols={3}>
+  <Card title="Node.js" icon="node" color="#339933">
+    Version `20.x`
+  </Card>
+  <Card title="npm" icon="cube">
+    Required for package execution and install workflows.
+  </Card>
+  <Card title="Python" icon="python" color="#3776AB">
+    `3.10`-`3.12` only if you run `export-openapi`.
+  </Card>
+</CardGroup>
+
+## 5-minute quickstart
+
+<Steps>
+  <Step title="Initialize docs scaffold">
+
+```bash
+npx sparkify init
+```
+
+  </Step>
+  <Step title="Run local preview">
+
+```bash
+npx sparkify dev
+```
+
+  </Step>
+  <Step title="Build deployable output">
+
+```bash
+npx sparkify build --site https://<user>.github.io --base /<repo>
+```
+
+  </Step>
+</Steps>
+
+## First `sparkify.config.json`
+
+```json
+{
+  "docsDir": "./docs",
+  "outDir": "./dist",
+  "site": "https://<user>.github.io",
+  "base": "/<repo>",
+  "api": {
+    "mode": "endpoint-pages",
+    "apiRoot": "/api-reference"
+  }
+}
+```
+
+## First-run modes
+
+<Tabs>
+  <Tab title="Run with npx (recommended)">
+
+```bash
+npx sparkify dev --docs-dir ./docs
+npx sparkify doctor --docs-dir ./docs
+npx sparkify build --docs-dir ./docs --out ./dist
+```
+
+  </Tab>
+  <Tab title="Run from local clone">
+
+```bash
+npm ci
+npm run dev -- --docs-dir ./docs
+npx tsx packages/cli/src/bin.ts doctor --docs-dir ./docs
+npx tsx packages/cli/src/bin.ts build --docs-dir ./docs --out ./dist
+```
+
+First `npm run dev` auto-builds internal workspace dependencies.
+
+  </Tab>
+</Tabs>
+
+## Common first-run issues
+
+<AccordionGroup>
+  <Accordion title="`build --strict` reports broken links">
+    Run `npx sparkify doctor` and fix unresolved internal links and missing static assets before publishing.
+  </Accordion>
+  <Accordion title="GitHub Pages output loads without styles">
+    Confirm `--base` matches the repository path (for project pages) and rebuild.
+  </Accordion>
+  <Accordion title="FastAPI export fails on import side effects">
+    Use `--env-file`, `--cwd`, and `--pythonpath` on `export-openapi` to mirror app runtime conditions.
+  </Accordion>
+</AccordionGroup>
+
+## Configuration
+
+### Configuration Overview
+
+Canonical URL: https://SparkAIUR.github.io/sparkify/configuration-overview
+
+# Configuration Overview
+
+## Resolution order
+
+1. CLI flags (highest priority)
+2. `sparkify.config.json`
+3. Built-in defaults
+
+<Info>
+`doctor` and `dev` both report docs config source: `docs.json`, `mint.json`, or generated fallback.
+</Info>
+
+<CardGroup cols={3}>
+  <Card title="Compat" icon="code-compare">
+    Use `compat.allowMintJson` and `compat.preferDocsJson` to control docs config discovery behavior.
+  </Card>
+  <Card title="API mode" icon="route">
+    `endpoint-pages` is default; `single-page` is optional fallback.
+  </Card>
+  <Card title="Renderer" icon="palette">
+    Primary renderer is `mintlify-astro`; legacy fallback can remain enabled.
+  </Card>
+</CardGroup>
+
+## `docs.json` vs `mint.json`
+
+<Tabs>
+  <Tab title="Both files exist">
+    If both are present, `docs.json` wins when `compat.preferDocsJson` is true.
+  </Tab>
+  <Tab title="Only mint.json">
+    `mint.json` is normalized into the internal docs model.
+  </Tab>
+  <Tab title="Neither file exists">
+    Navigation is generated from docs content (`autoNav`).
+  </Tab>
+</Tabs>
+
+## Minimal baseline
+
+```json
+{
+  "docsDir": "./docs",
+  "outDir": "./dist",
+  "base": "",
+  "autoNav": true,
+  "writeDocsJson": false,
+  "llms": {
+    "enabled": true
+  }
+}
+```
+
+`llms.enabled` defaults to `true`, which enables `llms.txt` outputs and the in-site markdown copy widget.
+
+## Compatibility toggles
+
+```json
+{
+  "compat": {
+    "allowMintJson": true,
+    "preferDocsJson": true
+  },
+  "renderer": {
+    "engine": "mintlify-astro",
+    "fallbackLegacyRenderer": true
+  }
+}
+```
+
+## Override examples
+
+<CodeGroup>
+
+```bash CLI
+npx sparkify build --config ./sparkify.config.json --site https://docs.example.com --base /platform
+```
+
+```json Config
+{
+  "site": "https://docs.example.com",
+  "base": "/platform"
+}
+```
+
+</CodeGroup>
+
+### Configuration Reference
+
+Canonical URL: https://SparkAIUR.github.io/sparkify/configuration-reference
+
+# Configuration Reference
+
+## Full example
+
+```json
+{
+  "docsDir": "./docs",
+  "outDir": "./dist",
+  "site": "https://docs.example.com",
+  "base": "/project-docs",
+  "autoNav": true,
+  "writeDocsJson": false,
+  "exclude": ["**/snippets/**", "**/_generated/**"],
+  "dirTitleMap": {
+    "api-reference": "API Documentation"
+  },
+  "openapi": [
+    {
+      "id": "public-api",
+      "source": "./docs/openapi.json",
+      "route": "/api-reference",
+      "title": "Public API"
+    }
+  ],
+  "fastapi": {
+    "app": "app.main:app",
+    "exportPath": "./docs/openapi.json",
+    "serverUrl": "https://api.example.com",
+    "python": "python3",
+    "envFile": "./.env",
+    "cwd": "./backend",
+    "pythonPath": "./src"
+  },
+  "compat": {
+    "allowMintJson": true,
+    "preferDocsJson": true
+  },
+  "api": {
+    "mode": "endpoint-pages",
+    "generateMissingEndpointPages": true,
+    "apiRoot": "/api-reference"
+  },
+  "renderer": {
+    "engine": "mintlify-astro",
+    "fallbackLegacyRenderer": true
+  },
+  "llms": {
+    "enabled": true
+  },
+  "playground": {
+    "provider": "stoplight",
+    "tryItCorsProxy": "https://proxy.example.com",
+    "serverUrl": "https://api.example.com",
+    "auth": {
+      "apiKey": true,
+      "bearer": true,
+      "basic": true,
+      "oauth2": {
+        "enabled": true,
+        "flows": ["authorizationCodePkce", "deviceCode"],
+        "tokenStorage": "sessionStorage"
+      }
+    }
+  }
+}
+```
+
+## Core fields
+
+| Field | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `docsDir` | string | `./docs` | Source docs directory |
+| `outDir` | string | `./dist` | Build output directory |
+| `site` | string | unset | Canonical site URL |
+| `base` | string | `""` | Base path (`/repo`) for project pages |
+| `autoNav` | boolean | `true` | Generate nav when config missing |
+| `writeDocsJson` | boolean | `false` | Persist generated docs config to source |
+| `exclude` | string[] | preset globs | Exclusion rules for generated nav |
+| `dirTitleMap` | object | `{}` | Directory title overrides |
+| `llms.enabled` | boolean | `true` | Generate `/llms.txt`, `/llms-full.txt`, and per-page markdown exports |
+
+## OpenAPI and FastAPI
+
+<AccordionGroup>
+  <Accordion title="`openapi[]` entries">
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `id` | string | yes | Unique identifier |
+| `source` | string | yes | Local file or URL |
+| `route` | string | no | API route root |
+| `title` | string | no | Display title |
+
+  </Accordion>
+  <Accordion title="`fastapi` export options">
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `app` | string | Python target in `module:app` format |
+| `exportPath` | string | Schema output path |
+| `serverUrl` | string | Optional `servers[0].url` override |
+| `python` | string | Python executable |
+| `envFile` | string | Environment file for subprocess |
+| `cwd` | string | Working directory |
+| `pythonPath` | string | PYTHONPATH prefix |
+
+  </Accordion>
+</AccordionGroup>
+
+## Compatibility and renderer
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `compat.allowMintJson` | boolean | `true` |
+| `compat.preferDocsJson` | boolean | `true` |
+| `renderer.engine` | `mintlify-astro \| legacy` | `mintlify-astro` |
+| `renderer.fallbackLegacyRenderer` | boolean | `true` |
+
+## API/playground boundaries in static hosting
+
+<Warning>
+For static docs, secret-requiring auth flows are out of scope. Use browser-safe flows only.
+</Warning>
+
+| Field | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `api.mode` | `endpoint-pages \| single-page` | `endpoint-pages` | API rendering model |
+| `api.generateMissingEndpointPages` | boolean | `true` | Auto-generate missing endpoint pages |
+| `api.apiRoot` | string | `/api-reference` | Root path for API pages |
+| `playground.provider` | `stoplight` | `stoplight` | v0.1 provider |
+| `playground.tryItCorsProxy` | string | unset | Proxy for CORS-limited APIs |
+| `playground.serverUrl` | string | unset | Runtime server override |
+| `playground.auth.oauth2.flows` | enum[] | PKCE + Device Code | Browser-safe OAuth2 only |
+| `playground.auth.oauth2.tokenStorage` | enum | `sessionStorage` | Browser token storage |
+
+## Use Cases
+
+### Use Case: Migrate Existing Mintlify Docs
+
+Canonical URL: https://SparkAIUR.github.io/sparkify/use-case-mintlify-migration
+
+# Use Case: Migrate Existing Mintlify Docs
+
+Use this path when you already have Mintlify-flavored MDX plus `docs.json` or `mint.json`.
+
+<Steps>
+  <Step title="Point sparkify at your docs source">
+
+```bash
+npx sparkify doctor --docs-dir ./docs
+```
+
+  </Step>
+  <Step title="Verify config source + compatibility warnings">
+    Confirm source detection (`docs.json`, `mint.json`, or generated) and resolve blocking validation errors.
+  </Step>
+  <Step title="Run strict build and fix link issues">
+
+```bash
+npx sparkify build --docs-dir ./docs --out ./dist --strict
+```
+
+  </Step>
+</Steps>
+
+## Source compatibility modes
+
+<Tabs>
+  <Tab title="`docs.json` preferred">
+
+```json
+{
+  "compat": {
+    "allowMintJson": true,
+    "preferDocsJson": true
+  }
+}
+```
+
+  </Tab>
+  <Tab title="`mint.json` only">
+
+```json
+{
+  "compat": {
+    "allowMintJson": true,
+    "preferDocsJson": false
+  }
+}
+```
+
+  </Tab>
+</Tabs>
+
+## Migration checklist
+
+- Confirm logos/icons resolve (no 4xx icon fetches).
+- Confirm topbar/tabs/sidebar/TOC structure is preserved.
+- Confirm all custom MDX components render.
+- Confirm `api:` frontmatter pages render endpoint chrome.
+- Confirm `build --strict` has zero broken internal links.
+
+<Warning>
+If a page references missing routes (for example stale API links), strict mode will fail intentionally.
+</Warning>
+
+### Use Case: OpenAPI-Only Docs
+
+Canonical URL: https://SparkAIUR.github.io/sparkify/use-case-openapi-only
+
+# Use Case: OpenAPI-Only Docs
+
+This mode is for repos without authored API MDX pages. `sparkify` generates API introduction and endpoint pages from OpenAPI.
+
+<CardGroup cols={2}>
+  <Card title="Input" icon="file-import">
+    OpenAPI from local file or remote URL.
+  </Card>
+  <Card title="Output" icon="sitemap">
+    Endpoint pages grouped by tag with method badges.
+  </Card>
+</CardGroup>
+
+## Minimal config
+
+```json
+{
+  "openapi": [
+    {
+      "id": "backend",
+      "source": "https://api.example.com/openapi.json",
+      "route": "/api-reference",
+      "title": "Backend API"
+    }
+  ],
+  "api": {
+    "mode": "endpoint-pages",
+    "generateMissingEndpointPages": true,
+    "apiRoot": "/api-reference"
+  },
+  "playground": {
+    "provider": "stoplight"
+  }
+}
+```
+
+## Build flow
+
+<Steps>
+  <Step title="Run diagnostics">
+
+```bash
+npx sparkify doctor --config ./sparkify.config.json
+```
+
+  </Step>
+  <Step title="Build output">
+
+```bash
+npx sparkify build --config ./sparkify.config.json --site https://docs.example.com
+```
+
+  </Step>
+  <Step title="Verify endpoint pages">
+    Confirm `/api-reference/` intro and generated operation routes are present.
+  </Step>
+</Steps>
+
+## Edge conditions
+
+<AccordionGroup>
+  <Accordion title="Remote OpenAPI timeouts or auth failures">
+    Prefer a pre-fetched OpenAPI artifact in CI and build from local path for deterministic output.
+  </Accordion>
+  <Accordion title="Circular refs or oversized schemas">
+    Bundle and dereference schema ahead of time, then pass bundled artifact to `openapi[].source`.
+  </Accordion>
+  <Accordion title="Try It blocked by CORS">
+    Configure API CORS or set `playground.tryItCorsProxy`.
+  </Accordion>
+</AccordionGroup>
+
+### Use Case: FastAPI Schema Export
+
+Canonical URL: https://SparkAIUR.github.io/sparkify/use-case-fastapi-export
+
+# Use Case: FastAPI Schema Export
+
+Use `export-openapi` when your source of truth is a FastAPI app.
+
+## One-shot export
+
+```bash
+npx sparkify export-openapi \
+  --fastapi "app.main:app" \
+  --out ./docs/openapi.json
+```
+
+## Export options in practice
+
+<Tabs>
+  <Tab title="Local app">
+
+```bash
+npx sparkify export-openapi --fastapi "app.main:app" --out ./docs/openapi.json
+```
+
+  </Tab>
+  <Tab title="Custom python/env/cwd">
+
+```bash
+npx sparkify export-openapi \
+  --fastapi "service.main:app" \
+  --python python3.11 \
+  --env-file ./.env \
+  --cwd ./backend \
+  --pythonpath ./src \
+  --server-url https://api.example.com \
+  --out ./docs/openapi.json
+```
+
+  </Tab>
+</Tabs>
+
+## Integrate into build workflow
+
+<Steps>
+  <Step title="Export schema">
+
+```bash
+npx sparkify export-openapi --fastapi "app.main:app" --out ./docs/openapi.json
+```
+
+  </Step>
+  <Step title="Build docs">
+
+```bash
+npx sparkify build --docs-dir ./docs --out ./dist --site https://docs.example.com
+```
+
+  </Step>
+</Steps>
+
+## Side-effect troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Import errors during app loading">
+    Ensure app dependencies are installed and `--cwd` points to the backend root.
+  </Accordion>
+  <Accordion title="Missing environment variables">
+    Pass `--env-file` so runtime settings are available during import.
+  </Accordion>
+  <Accordion title="Module path not found">
+    Pass `--pythonpath` to align module resolution with your app layout.
+  </Accordion>
+</AccordionGroup>
+
+## Deployment
+
+### Deployment
+
+Canonical URL: https://SparkAIUR.github.io/sparkify/deployment
+
+# Deployment
+
+Use this page to choose your deployment mode.
+
+<CardGroup cols={2}>
+  <Card title="GitHub Pages" icon="github" href="/deploy-github-pages">
+    Recommended for repository-hosted docs with CI artifact deployment.
+  </Card>
+  <Card title="Self-hosted containers" icon="docker" href="/deploy-self-host-containers">
+    Serve generated static docs behind your own infrastructure.
+  </Card>
+</CardGroup>
+
+## Build baseline
+
+```bash
+npx sparkify build --site https://<domain> --base /<repo-or-subpath>
+```
+
+## Decision matrix
+
+| Requirement | Recommended option |
+| --- | --- |
+| Lowest operational overhead | GitHub Pages |
+| Private network deployment | Self-hosted container |
+| Existing reverse proxy stack | Self-hosted container |
+| Public OSS docs in repo | GitHub Pages |
+
+## Release checklist
+
+<Steps>
+  <Step title="Validate strict build">
+    Run `npx sparkify build --strict` and resolve all warnings.
+  </Step>
+  <Step title="Validate base-path routing">
+    Smoke test deep links and assets under the target base path.
+  </Step>
+  <Step title="Publish and verify">
+    Deploy output and verify page shell, search, and API pages.
+  </Step>
+</Steps>
+
+### Deploy: GitHub Pages
+
+Canonical URL: https://SparkAIUR.github.io/sparkify/deploy-github-pages
+
+# Deploy: GitHub Pages
+
+GitHub Pages is the default recommendation for public repository docs.
+
+## Build command
+
+```bash
+npx sparkify build --site https://<user>.github.io --base /<repo>
+```
+
+## Pipeline at a glance
+
+<Steps>
+  <Step title="Build static output">
+    Run `sparkify build` with explicit `--site` and `--base` and write to `dist/`.
+  </Step>
+  <Step title="Upload the pages artifact">
+    Upload the generated `dist/` directory with `actions/upload-pages-artifact`.
+  </Step>
+  <Step title="Deploy with GitHub Pages action">
+    Deploy the uploaded artifact using `actions/deploy-pages`.
+  </Step>
+  <Step title="Smoke test deep links">
+    Verify routed pages under `/<repo>/...` and confirm styles/assets load correctly.
+  </Step>
+</Steps>
+
+## Workflow template (consumer repos)
+
+```yaml
+name: Deploy Docs
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx sparkify build --site https://${{ github.repository_owner }}.github.io --base /${{ github.event.repository.name }}
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/deploy-pages@v4
+```
+
+## Workflow template (sparkify monorepo maintainers, internal)
+
+```yaml
+- run: npm ci
+- run: npm run build
+- run: |
+    node packages/cli/dist/bin.js build \
+      --docs-dir ./docs \
+      --out ./dist \
+      --site https://${{ github.repository_owner }}.github.io \
+      --base /${{ github.event.repository.name }}
+```
+
+## `site` and `base` matrix
+
+| Site type | `site` | `base` |
+| --- | --- | --- |
+| User pages (`user.github.io`) | `https://user.github.io` | `""` |
+| Project pages (`user.github.io/repo`) | `https://user.github.io` | `/repo` |
+
+## Canonical and trailing slash notes
+
+- Keep `site` absolute and stable to avoid broken canonical metadata.
+- Keep `base` without trailing slash (`/repo`, not `/repo/`).
+- Validate deep links under the deployed base path.
+
+<Warning>
+Most broken asset reports on Pages are caused by incorrect `base`.
+</Warning>
+
+### Deploy: Self-Host in Containers
+
+Canonical URL: https://SparkAIUR.github.io/sparkify/deploy-self-host-containers
+
+# Deploy: Self-Host in Containers
+
+Build docs once, then serve `dist/` behind your own infrastructure.
+
+```bash
+npx sparkify build --docs-dir ./docs --out ./dist --site https://docs.example.com --base ""
+```
+
+<Tabs>
+  <Tab title="Nginx static (recommended)">
+
+### Dockerfile
+
+```dockerfile
+FROM nginx:1.27-alpine
+COPY dist/ /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+```
+
+### nginx.conf
+
+```nginx
+server {
+  listen 80;
+  server_name _;
+
+  root /usr/share/nginx/html;
+  index index.html;
+
+  location / {
+    try_files $uri $uri/ /index.html;
+  }
+
+  location /_astro/ {
+    add_header Cache-Control "public, max-age=31536000, immutable";
+  }
+
+  location = /healthz {
+    return 200 "ok";
+  }
+}
+```
+
+### docker-compose
+
+```yaml
+services:
+  docs:
+    build: .
+    ports:
+      - "8080:80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/healthz"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+```
+
+  </Tab>
+  <Tab title="Node static server">
+
+### Dockerfile
+
+```dockerfile
+FROM node:20-alpine
+WORKDIR /app
+RUN npm install -g serve
+COPY dist/ ./dist
+EXPOSE 8080
+CMD ["serve", "-s", "dist", "-l", "8080"]
+```
+
+### docker-compose
+
+```yaml
+services:
+  docs:
+    build: .
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+```
+
+  </Tab>
+</Tabs>
+
+## Operational notes
+
+- Rebuild image whenever docs content changes.
+- Keep reverse-proxy gzip/brotli and TLS at edge.
+- If hosting under subpath, build with matching `--base`.
+
+## Examples
+
+### Example: PipeHub Full Implementation
+
+Canonical URL: https://SparkAIUR.github.io/sparkify/examples-pipeshub-full
+
+# Example: PipeHub Full Implementation
+
+This is the full production-style reference implementation for `v0.1`.
+
+## Source and build inputs
+
+- Source docs: `./refs/libs/pipeshub-ai-docs`
+- Build config: `./refs/gen/pipeshub/sparkify.config.json`
+- Output: `./refs/gen/pipeshub/dist`
+
+## Build command (sparkify monorepo maintainers, internal)
+
+This command depends on monorepo-local artifacts and is not a consumer `npx` workflow.
+
+```bash
+node packages/cli/dist/bin.js build \
+  --config refs/gen/pipeshub/sparkify.config.json \
+  --debug
+```
+
+## Why this example matters
+
+<CardGroup cols={2}>
+  <Card title="Broad nav surface" icon="sitemap">
+    Multi-group IA with deep sections and connector-heavy pages.
+  </Card>
+  <Card title="Component coverage" icon="shapes">
+    Real usage of tabs, steps, accordions, notes, and API pages.
+  </Card>
+  <Card title="Icon compatibility" icon="icons">
+    Validates mixed icon sources without CloudFront icon 4xx regressions.
+  </Card>
+  <Card title="Parity tracking" icon="camera">
+    Includes live-vs-local captures and regression report artifacts.
+  </Card>
+</CardGroup>
+
+## Visual snapshots
+
+### Quickstart parity (local)
+
+![PipeHub quickstart local](/images/examples/pipeshub-quickstart-local.png)
+
+### Quickstart parity (live)
+
+![PipeHub quickstart live](/images/examples/pipeshub-quickstart-live.png)
+
+### Connector page parity (local)
+
+![PipeHub confluence local](/images/examples/pipeshub-confluence-local.png)
+
+### Connector page parity (live)
+
+![PipeHub confluence live](/images/examples/pipeshub-confluence-live.png)
+
+## Notes from this run
+
+- Navbar GitHub primary rendering is matched to hosted style.
+- Sidebar icon fallback avoids invalid icon-library forcing.
+- No CloudFront 4xx icon fetches on validated routes.
+
+## Related artifacts
+
+- `./refs/gen/pipeshub/parity-refresh/report.json`
+- `./refs/gen/pipeshub/parity-refresh/local`
+- `./refs/gen/pipeshub/parity-refresh/live`
+
+### Example Reference: AuthentiVoice
+
+Canonical URL: https://SparkAIUR.github.io/sparkify/examples-authentivoice-reference
+
+# Example Reference: AuthentiVoice
+
+This reference tracks parity behavior between local `sparkify` output and the live AuthentiVoice site.
+
+## Inputs and outputs
+
+- Source docs: `/Volumes/S0/github/_sparkai/authentivoice/docs`
+- Build config: `./refs/gen/authentivoice/sparkify.config.json`
+- Output: `./refs/gen/authentivoice/dist`
+- Analysis: `./refs/gen/authentivoice/PARITY_ANALYSIS.md`
+
+<CardGroup cols={2}>
+  <Card title="What matches" icon="check-circle">
+    Shell layout, tabs/sidebar/TOC behavior, endpoint-page runtime chrome, and mobile stacking.
+  </Card>
+  <Card title="Known deltas" icon="triangle-exclamation">
+    Minor syntax highlighting/UI polish differences and source-level strict-link failures if upstream links are stale.
+  </Card>
+</CardGroup>
+
+## Snapshot samples
+
+### Local output
+
+![AuthentiVoice intro local](/images/examples/authentivoice-intro-local.png)
+
+### Live site
+
+![AuthentiVoice intro live](/images/examples/authentivoice-intro-live.png)
+
+## Recommended validation for adopters
+
+<Steps>
+  <Step title="Run strict build">
+
+```bash
+npx sparkify build --docs-dir ./docs --out ./dist --strict
+```
+
+  </Step>
+  <Step title="Capture local vs live screenshots">
+    Lock routes, viewport, and theme, then compare for structural or behavioral drift.
+  </Step>
+  <Step title="Fix P0/P1 deltas first">
+    Prioritize runtime and IA mismatches before minor visual polish.
+  </Step>
+</Steps>
+
+### Example Reference: Frauditor Backend
+
+Canonical URL: https://SparkAIUR.github.io/sparkify/examples-frauditor-reference
+
+# Example Reference: Frauditor Backend
+
+This reference demonstrates live OpenAPI ingestion and generated endpoint-page IA.
+
+## Inputs and outputs
+
+- Docs URL: `https://frauditor.staging.nu-dev.co/api/docs`
+- OpenAPI source: `https://frauditor.staging.nu-dev.co/api/openapi.json`
+- Build config: `./refs/gen/frauditor-backend/sparkify.config.json`
+- Output: `./refs/gen/frauditor-backend/dist`
+
+## Snapshot samples
+
+![Frauditor generated home](/images/examples/frauditor-home.png)
+
+![Frauditor generated endpoint page](/images/examples/frauditor-endpoint.png)
+
+## What this validates
+
+<CardGroup cols={2}>
+  <Card title="OpenAPI-only flow" icon="file-import">
+    Generates API intro and endpoint pages with method badges.
+  </Card>
+  <Card title="Interactive endpoint layout" icon="code">
+    Includes Try It panel, code samples, and response panel rendering.
+  </Card>
+</CardGroup>
+
+## Known limitations to document
+
+- Browser-side Try It still depends on API CORS policy.
+- Remote OpenAPI fetch can fail due to timeout/auth/rate limit; local artifact fallback is recommended for CI determinism.
+- Large/circular specs should be pre-bundled before build.
+
+## Reference
+
+### CLI Reference
+
+Canonical URL: https://SparkAIUR.github.io/sparkify/cli
+
+# CLI Reference
+
+## When to use each command
+
+<CardGroup cols={2}>
+  <Card title="init" icon="wand-magic-sparkles">
+    Bootstrap docs skeleton and base config.
+  </Card>
+  <Card title="dev" icon="laptop-code">
+    Live preview with workspace rebuild and config-source reporting.
+  </Card>
+  <Card title="build" icon="hammer">
+    Generate deployable static output.
+  </Card>
+  <Card title="doctor" icon="stethoscope">
+    Validate environment, docs source, and compatibility diagnostics.
+  </Card>
+  <Card title="export-openapi" icon="file-code">
+    Export schema from FastAPI app without launching a server.
+  </Card>
+</CardGroup>
+
+## `sparkify init`
+
+Scaffold a docs setup.
+
+| Flag | Description | Default |
+| --- | --- | --- |
+| `--docs-dir <path>` | Docs directory | `./docs` |
+| `--project-name <name>` | Project display name | none |
+| `--primary-color <hex>` | Primary theme color | `#2563eb` |
+| `--with-openapi <pathOrUrl>` | Include OpenAPI source | none |
+| `--fastapi <module:app>` | FastAPI target for export | none |
+
+## `sparkify dev`
+
+Run local preview.
+
+| Flag | Description | Default |
+| --- | --- | --- |
+| `--config <path>` | Config file path | `sparkify.config.json` |
+| `--docs-dir <path>` | Docs directory override | from config |
+| `--port <number>` | Dev server port | `4321` |
+| `--base <path>` | Base path override | from config |
+| `--debug` | Enable debug logs | `false` |
+
+## `sparkify build`
+
+Build static output.
+
+| Flag | Description | Default |
+| --- | --- | --- |
+| `--config <path>` | Config file path | `sparkify.config.json` |
+| `--docs-dir <path>` | Docs directory override | from config |
+| `--out <path>` | Output directory override | from config |
+| `--site <url>` | Canonical site URL | from config |
+| `--base <path>` | Base path override | from config |
+| `--strict` | Fail on warnings | `false` |
+| `--debug` | Enable debug logs | `false` |
+
+## `sparkify doctor`
+
+Run diagnostics for Node runtime, docs path, config parsing, docs config source, and OpenAPI readiness.
+
+| Flag | Description |
+| --- | --- |
+| `--config <path>` | Config file path |
+| `--docs-dir <path>` | Docs directory override |
+
+## `sparkify export-openapi`
+
+Export OpenAPI schema from FastAPI.
+
+| Flag | Description | Default |
+| --- | --- | --- |
+| `--fastapi <module:app>` | FastAPI target | required |
+| `--out <path>` | Output file | `./docs/openapi.json` |
+| `--server-url <url>` | Override `servers[0].url` | none |
+| `--python <path>` | Python executable | `python` |
+| `--env-file <path>` | Environment file | none |
+| `--cwd <path>` | Working directory | current cwd |
+| `--pythonpath <path>` | PYTHONPATH prefix | none |
+
+Use the monorepo-local command below only when maintaining this repository.
+
+<CodeGroup>
+
+```bash npm
+npx sparkify export-openapi --fastapi "app.main:app" --out ./docs/openapi.json
+```
+
+```bash monorepo-maintainers-internal
+node packages/cli/dist/bin.js export-openapi --fastapi "app.main:app" --cwd ./examples/fastapi-demo
+```
+
+</CodeGroup>
+
+## Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | Success |
+| `1` | General failure |
+| `2` | Invalid config |
+| `3` | Invalid docs config (`docs.json`/`mint.json`) |
+| `4` | Invalid OpenAPI input |
+| `5` | Build failure |
+
+### LLM Markdown Copy
+
+Canonical URL: https://SparkAIUR.github.io/sparkify/llms-copy-widget
+
+# LLM Markdown Copy
+
+`sparkify` generates LLM-friendly markdown outputs by default and exposes a floating copy widget in the bottom-right corner.
+
+## What gets generated
+
+| Path | Purpose |
+| --- | --- |
+| `/llms.txt` | Index of available markdown exports |
+| `/llms-full.txt` | Single-file markdown for the full navigable docs site |
+| `<route>/index.html.md` | Per-page markdown export (`/index.html.md` for home) |
+
+## In-site widget actions
+
+- `Copy Page as Markdown` copies the current page markdown export.
+- `Copy Site as Markdown` copies `/llms-full.txt`.
+
+The widget uses static files from your built docs output, so users can paste directly into LLM tools without scraping rendered HTML.
+
+## Disable if needed
+
+```json
+{
+  "llms": {
+    "enabled": false
+  }
+}
+```
+
+When disabled, llms artifacts are not emitted and the widget is hidden.
+
+## Deployment notes
+
+- Works with non-root base paths (`--base /repo`) because widget requests are base-path aware.
+- Site-level export scope follows navigable pages, including generated API pages.
+
+### API Playground
+
+Canonical URL: https://SparkAIUR.github.io/sparkify/api-playground
+
+# API Playground
+
+`sparkify` renders OpenAPI docs with endpoint-page mode by default (`api.mode: "endpoint-pages"`).
+
+<CardGroup cols={2}>
+  <Card title="Endpoint pages" icon="diagram-project">
+    Generates operation pages under `/api-reference/*`.
+  </Card>
+  <Card title="Single page" icon="file-lines">
+    Optional fallback with `api.mode: "single-page"`.
+  </Card>
+</CardGroup>
+
+## Auth support
+
+- API key
+- Bearer
+- Basic
+- OAuth2 browser-safe flows:
+  - Authorization Code + PKCE
+  - Device Code
+
+<Warning>
+Secret-dependent OAuth2 flows are intentionally out of scope for static-browser execution.
+</Warning>
+
+## Static hosting constraints
+
+Try It runs in-browser. Your API must allow CORS, or requests must go through a proxy.
+
+```json
+{
+  "playground": {
+    "provider": "stoplight",
+    "tryItCorsProxy": "https://proxy.example.com"
+  }
+}
+```
+
+## Troubleshooting Try It
+
+<AccordionGroup>
+  <Accordion title="CORS preflight fails">
+    Add the docs origin to allowed origins and ensure required methods/headers are permitted.
+  </Accordion>
+  <Accordion title="Remote schema requires auth">
+    Prefer local checked-in schema for deterministic builds, or configure authenticated fetch pipeline outside runtime.
+  </Accordion>
+  <Accordion title="Spec too large or has circular refs">
+    Pre-bundle the schema during CI and feed `sparkify` a bundled local artifact.
+  </Accordion>
+</AccordionGroup>
+
+## Config patterns
+
+<Tabs>
+  <Tab title="Endpoint pages (default)">
+
+```json
+{
+  "api": {
+    "mode": "endpoint-pages",
+    "apiRoot": "/api-reference"
+  }
+}
+```
+
+  </Tab>
+  <Tab title="Single-page fallback">
+
+```json
+{
+  "api": {
+    "mode": "single-page",
+    "apiRoot": "/api"
+  }
+}
+```
+
+  </Tab>
+</Tabs>
+
+### Troubleshooting
+
+Canonical URL: https://SparkAIUR.github.io/sparkify/troubleshooting
+
+# Troubleshooting
+
+## Fast diagnosis flow
+
+<Steps>
+  <Step title="Run doctor first">
+
+```bash
+npx sparkify doctor --config ./sparkify.config.json
+```
+
+  </Step>
+  <Step title="Run strict build">
+
+```bash
+npx sparkify build --config ./sparkify.config.json --strict
+```
+
+  </Step>
+  <Step title="Fix highest-severity failures first">
+    1) invalid config/docs json, 2) invalid OpenAPI, 3) routing/base-path issues.
+  </Step>
+</Steps>
+
+## Common failure classes
+
+<AccordionGroup>
+  <Accordion title="Broken links in strict mode">
+    Ensure every internal href resolves to a real generated route. Fix stale paths and missing assets.
+  </Accordion>
+  <Accordion title="Wrong base path on deployed site">
+    Set `--base /repo` for project pages and rebuild. Verify links/assets under that prefix.
+  </Accordion>
+  <Accordion title="Remote OpenAPI fetch errors">
+    Fetch and pin the schema in CI, then build from local path.
+  </Accordion>
+  <Accordion title="Try It requests fail in browser">
+    Configure API CORS or set `playground.tryItCorsProxy`.
+  </Accordion>
+  <Accordion title="FastAPI export import side effects">
+    Use `--cwd`, `--env-file`, and `--pythonpath` to match app runtime.
+  </Accordion>
+  <Accordion title="Icon rendering inconsistencies">
+    Verify icon names are valid for selected icon source and avoid forcing incompatible libraries.
+  </Accordion>
+</AccordionGroup>
+
+## Exit code map
+
+| Exit code | Category |
+| --- | --- |
+| `1` | General failure |
+| `2` | Invalid config |
+| `3` | Invalid docs config |
+| `4` | Invalid OpenAPI |
+| `5` | Build failure |
+
+## Useful commands
+
+<CodeGroup>
+
+```bash doctor
+npx sparkify doctor --docs-dir ./docs
+```
+
+```bash strict-build
+npx sparkify build --docs-dir ./docs --out ./dist --strict
+```
+
+```bash fastapi-export
+npx sparkify export-openapi --fastapi "app.main:app" --out ./docs/openapi.json
+```
+
+</CodeGroup>
+
+### Maintainer Release Runbook
+
+Canonical URL: https://SparkAIUR.github.io/sparkify/maintainer-release-runbook
+
+# Maintainer Release Runbook
+
+This page is for `sparkify` maintainers publishing the monorepo packages.
+
+## Preconditions
+
+- npm token available in local `.env` as `NPM_TOKEN`
+- npm identity matches expected publisher account
+- branch is up to date with `main`
+
+## Pre-release validation
+
+```bash
+npm ci
+npm run dev -- --help
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+npm pack --dry-run --workspace sparkify
+```
+
+Verify the `sparkify` tarball contains:
+
+- `README.md`
+- `LICENSE`
+- `dist/*`
+- `package.json`
+
+## npm auth checks
+
+```bash
+make npm-whoami
+make publish-dry-run
+```
+
+## Versioning and release
+
+```bash
+npm run changeset
+npm run version-packages
+```
+
+Commit version bumps and changelog updates, then push to `main` to let `release.yml` publish via Changesets.
+
+After publish succeeds, `release.yml` also rebuilds `./docs` using the published `sparkify` package and deploys to GitHub Pages.
+
+## Post-publish smoke test (clean temp project)
+
+```bash
+tmpdir="$(mktemp -d)"
+cd "$tmpdir"
+npx sparkify --help
+```
+
+Expected result: command help renders and exits `0` without local repository context.

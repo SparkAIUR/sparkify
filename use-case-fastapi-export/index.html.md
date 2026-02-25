@@ -1,0 +1,70 @@
+# Use Case: FastAPI Schema Export
+
+Use `export-openapi` when your source of truth is a FastAPI app.
+
+## One-shot export
+
+```bash
+npx sparkify export-openapi \
+  --fastapi "app.main:app" \
+  --out ./docs/openapi.json
+```
+
+## Export options in practice
+
+<Tabs>
+  <Tab title="Local app">
+
+```bash
+npx sparkify export-openapi --fastapi "app.main:app" --out ./docs/openapi.json
+```
+
+  </Tab>
+  <Tab title="Custom python/env/cwd">
+
+```bash
+npx sparkify export-openapi \
+  --fastapi "service.main:app" \
+  --python python3.11 \
+  --env-file ./.env \
+  --cwd ./backend \
+  --pythonpath ./src \
+  --server-url https://api.example.com \
+  --out ./docs/openapi.json
+```
+
+  </Tab>
+</Tabs>
+
+## Integrate into build workflow
+
+<Steps>
+  <Step title="Export schema">
+
+```bash
+npx sparkify export-openapi --fastapi "app.main:app" --out ./docs/openapi.json
+```
+
+  </Step>
+  <Step title="Build docs">
+
+```bash
+npx sparkify build --docs-dir ./docs --out ./dist --site https://docs.example.com
+```
+
+  </Step>
+</Steps>
+
+## Side-effect troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Import errors during app loading">
+    Ensure app dependencies are installed and `--cwd` points to the backend root.
+  </Accordion>
+  <Accordion title="Missing environment variables">
+    Pass `--env-file` so runtime settings are available during import.
+  </Accordion>
+  <Accordion title="Module path not found">
+    Pass `--pythonpath` to align module resolution with your app layout.
+  </Accordion>
+</AccordionGroup>

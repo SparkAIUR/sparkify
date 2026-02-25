@@ -1,0 +1,36 @@
+# sparkify
+
+> LLM-friendly markdown exports for this documentation site.
+
+## Getting Started
+- [sparkify](/index.html.md)
+- [Getting Started](/getting-started/index.html.md)
+
+## Configuration
+- [Configuration Overview](/configuration-overview/index.html.md)
+- [Configuration Reference](/configuration-reference/index.html.md)
+
+## Use Cases
+- [Use Case: Migrate Existing Mintlify Docs](/use-case-mintlify-migration/index.html.md)
+- [Use Case: OpenAPI-Only Docs](/use-case-openapi-only/index.html.md)
+- [Use Case: FastAPI Schema Export](/use-case-fastapi-export/index.html.md)
+
+## Deployment
+- [Deployment](/deployment/index.html.md)
+- [Deploy: GitHub Pages](/deploy-github-pages/index.html.md)
+- [Deploy: Self-Host in Containers](/deploy-self-host-containers/index.html.md)
+
+## Examples
+- [Example: PipeHub Full Implementation](/examples-pipeshub-full/index.html.md)
+- [Example Reference: AuthentiVoice](/examples-authentivoice-reference/index.html.md)
+- [Example Reference: Frauditor Backend](/examples-frauditor-reference/index.html.md)
+
+## Reference
+- [CLI Reference](/cli/index.html.md)
+- [LLM Markdown Copy](/llms-copy-widget/index.html.md)
+- [API Playground](/api-playground/index.html.md)
+- [Troubleshooting](/troubleshooting/index.html.md)
+- [Maintainer Release Runbook](/maintainer-release-runbook/index.html.md)
+
+## Optional
+- [Full Site as Markdown](/llms-full.txt)

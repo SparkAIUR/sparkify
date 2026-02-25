@@ -1,0 +1,41 @@
+# Deployment
+
+Use this page to choose your deployment mode.
+
+<CardGroup cols={2}>
+  <Card title="GitHub Pages" icon="github" href="/deploy-github-pages">
+    Recommended for repository-hosted docs with CI artifact deployment.
+  </Card>
+  <Card title="Self-hosted containers" icon="docker" href="/deploy-self-host-containers">
+    Serve generated static docs behind your own infrastructure.
+  </Card>
+</CardGroup>
+
+## Build baseline
+
+```bash
+npx sparkify build --site https://<domain> --base /<repo-or-subpath>
+```
+
+## Decision matrix
+
+| Requirement | Recommended option |
+| --- | --- |
+| Lowest operational overhead | GitHub Pages |
+| Private network deployment | Self-hosted container |
+| Existing reverse proxy stack | Self-hosted container |
+| Public OSS docs in repo | GitHub Pages |
+
+## Release checklist
+
+<Steps>
+  <Step title="Validate strict build">
+    Run `npx sparkify build --strict` and resolve all warnings.
+  </Step>
+  <Step title="Validate base-path routing">
+    Smoke test deep links and assets under the target base path.
+  </Step>
+  <Step title="Publish and verify">
+    Deploy output and verify page shell, search, and API pages.
+  </Step>
+</Steps>
