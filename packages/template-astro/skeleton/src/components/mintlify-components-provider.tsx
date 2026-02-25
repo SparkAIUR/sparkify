@@ -28,6 +28,7 @@ import {
   Warning
 } from "@mintlify/components";
 import ApiPlayground from "./ApiPlayground";
+import { withBase } from "../lib/links";
 
 type PropsWithChildren = React.PropsWithChildren<Record<string, unknown>>;
 
@@ -37,6 +38,16 @@ function toBoolean(value: unknown): boolean {
 
 function Wrapper(props: PropsWithChildren) {
   return <div>{props.children}</div>;
+}
+
+function BaseAwareLink(props: React.AnchorHTMLAttributes<HTMLAnchorElement>) {
+  const href = typeof props.href === "string" ? withBase(props.href) : props.href;
+  return <a {...props} href={href} />;
+}
+
+function BaseAwareCard(props: PropsWithChildren) {
+  const href = typeof props.href === "string" ? withBase(props.href) : undefined;
+  return <MintCard {...props} href={href} />;
 }
 
 function Alert(props: PropsWithChildren) {
@@ -139,7 +150,7 @@ export const components = {
   ApiPlayground,
   Badge,
   Callout,
-  Card: MintCard,
+  Card: BaseAwareCard,
   CardGroup: Columns,
   Cards: Columns,
   Check,
@@ -158,7 +169,7 @@ export const components = {
   Icon,
   Info,
   Latex: Wrapper,
-  Link: Wrapper,
+  Link: BaseAwareLink,
   Loom: Wrapper,
   MDXContentController: Wrapper,
   Mermaid,
@@ -182,7 +193,8 @@ export const components = {
   Tree,
   Update,
   View,
-  Warning
+  Warning,
+  a: BaseAwareLink
 };
 
 export function useMDXComponents() {

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Icon } from '@mintlify/components';
 import { openSearch } from './SearchBar';
 import { GitHubPrimaryLink } from './GitHubPrimaryLink';
+import { withBase } from '../lib/links';
 
 interface HeaderLink {
   label: string;
@@ -74,7 +75,7 @@ export function MobileActionButtons({
               {navbarLinks.map((link) => (
                 <a
                   key={link.href}
-                  href={link.href}
+                  href={withBase(link.href)}
                   className="block rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
                   onClick={() => setMenuOpen(false)}
                 >
@@ -83,7 +84,7 @@ export function MobileActionButtons({
               ))}
               {navbarPrimary?.type === 'button' ? (
                 <a
-                  href={navbarPrimary.href}
+                  href={withBase(navbarPrimary.href)}
                   className="mt-1 block rounded-lg bg-(--primary) px-3 py-2 text-sm font-semibold text-white hover:opacity-90"
                   onClick={() => setMenuOpen(false)}
                 >
@@ -91,7 +92,7 @@ export function MobileActionButtons({
                 </a>
               ) : navbarPrimary?.type === 'github' ? (
                 <GitHubPrimaryLink
-                  href={navbarPrimary.href}
+                  href={withBase(navbarPrimary.href)}
                   repo={navbarPrimary.repo}
                   className="mt-1 block rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
                   showStars={false}

@@ -1,4 +1,6 @@
 ---
+import { withBase } from "../lib/links";
+
 interface Props {
   title?: string;
   icon?: string;
@@ -7,9 +9,10 @@ interface Props {
 
 const { title, icon, href } = Astro.props;
 const Wrapper = href ? "a" : "div";
+const resolvedHref = href ? withBase(href) : undefined;
 ---
 
-<Wrapper class="sf-card" href={href}>
+<Wrapper class="sf-card" href={resolvedHref}>
   {icon ? <div class="sf-card-icon" aria-hidden="true">{icon}</div> : null}
   {title ? <h3>{title}</h3> : null}
   <div class="sf-card-content"><slot /></div>

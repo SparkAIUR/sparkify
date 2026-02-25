@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "@mintlify/components";
 import searchIndex from "../generated/search-index.json";
+import { withBase } from "../lib/links";
 
 const SEARCH_OPEN_EVENT = "open-search";
 
@@ -105,7 +106,7 @@ export function SearchBar() {
               {items.map((item) => (
                 <li key={item.id}>
                   <a
-                    href={item.href}
+                    href={withBase(item.href)}
                     className="block rounded-lg px-3 py-2 hover:bg-gray-50"
                     onClick={() => setOpen(false)}
                   >

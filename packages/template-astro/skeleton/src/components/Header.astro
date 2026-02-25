@@ -3,6 +3,7 @@ import type { TabInfo } from "@mintlify/astro/helpers";
 import { SearchBar } from "./SearchBar";
 import { MobileActionButtons, MobileNavToggle } from "./MobileHeaderActions";
 import { GitHubPrimaryLink } from "./GitHubPrimaryLink";
+import { withBase } from "../lib/links";
 
 interface HeaderLink {
   label: string;
@@ -45,7 +46,24 @@ const {
   navbarPrimary
 } = Astro.props;
 
-const usingTabs = tabs && tabs.length > 0;
+const resolvedLogoHref = withBase(logoHref);
+const resolvedNavbarLinks = navbarLinks.map((link) => ({
+  ...link,
+  href: withBase(link.href)
+}));
+const resolvedNavbarPrimary =
+  navbarPrimary && "href" in navbarPrimary
+    ? {
+        ...navbarPrimary,
+        href: withBase(navbarPrimary.href)
+      }
+    : navbarPrimary;
+const resolvedTabs =
+  tabs?.map((tab) => ({
+    ...tab,
+    href: withBase(tab.href)
+  })) ?? null;
+const usingTabs = resolvedTabs && resolvedTabs.length > 0;
 ---
 
 <header class="sticky top-0 w-full px-5 lg:px-8 z-50">
@@ -60,7 +78,7 @@ const usingTabs = tabs && tabs.length > 0;
           ]}
         >
           <div class="flex items-center shrink-0 lg:flex-1 min-w-0">
-            <a href={logoHref} class="flex items-center gap-3 shrink-0">
+            <a href={resolvedLogoHref} class="flex items-center gap-3 shrink-0">
               {logoSrc ? (
                 <img src={logoSrc} alt={siteName} class="h-8 w-8 rounded-xl object-contain" />
               ) : (
@@ -77,27 +95,27 @@ const usingTabs = tabs && tabs.length > 0;
           </div>
 
           <MobileActionButtons
-            navbarLinks={navbarLinks}
-            navbarPrimary={navbarPrimary}
+            navbarLinks={resolvedNavbarLinks}
+            navbarPrimary={resolvedNavbarPrimary}
             client:load
           />
 
           <div class="flex-1 hidden lg:flex items-center justify-end gap-3">
-            {navbarLinks.map((link) => (
+            {resolvedNavbarLinks.map((link) => (
               <a class="text-gray-700 text-sm hover:text-gray-900" href={link.href}>{link.label}</a>
             ))}
-            {navbarPrimary?.type === "button" ? (
+            {resolvedNavbarPrimary?.type === "button" ? (
               <a
                 class="inline-flex items-center gap-1 rounded-xl bg-(--primary) px-3.5 py-2 text-sm font-semibold text-white hover:opacity-90"
-                href={navbarPrimary.href}
+                href={resolvedNavbarPrimary.href}
               >
-                {navbarPrimary.label}
+                {resolvedNavbarPrimary.label}
               </a>
-            ) : navbarPrimary?.type === "github" ? (
+            ) : resolvedNavbarPrimary?.type === "github" ? (
               <GitHubPrimaryLink
                 client:load
-                href={navbarPrimary.href}
-                repo={navbarPrimary.repo}
+                href={resolvedNavbarPrimary.href}
+                repo={resolvedNavbarPrimary.repo}
                 className="inline-flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-900"
               />
             ) : null}
@@ -112,7 +130,7 @@ const usingTabs = tabs && tabs.length > 0;
       usingTabs && (
         <div class="hidden lg:flex h-12">
           <div class="h-full flex text-sm gap-x-6">
-            {tabs.map((tab) => (
+            {resolvedTabs?.map((tab) => (
               <a
                 href={tab.href}
                 class:list={[

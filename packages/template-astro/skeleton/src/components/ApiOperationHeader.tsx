@@ -1,4 +1,5 @@
 import { cn } from "@mintlify/components";
+import { withBase } from "../lib/links";
 
 interface ApiOperationHeaderProps {
   method: string;
@@ -38,7 +39,7 @@ export default function ApiOperationHeader({ method, path, playgroundHref }: Api
       </code>
       {playgroundHref ? (
         <a
-          href={playgroundHref}
+          href={withBase(playgroundHref)}
           className="ml-auto rounded-xl bg-emerald-500 px-3 py-1.5 text-white font-semibold text-sm hover:bg-emerald-600"
         >
           Try It

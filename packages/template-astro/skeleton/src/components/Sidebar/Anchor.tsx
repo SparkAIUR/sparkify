@@ -1,5 +1,6 @@
 import { cn, Icon } from '@mintlify/components';
 import type { AnchorItem } from './types';
+import { withBase } from '../../lib/links';
 
 export function Anchor({ name, href, icon, color }: AnchorItem) {
   const isExternal =
@@ -9,7 +10,7 @@ export function Anchor({ name, href, icon, color }: AnchorItem) {
 
   return (
     <a
-      href={href}
+      href={withBase(href)}
       target={isExternal ? '_blank' : undefined}
       rel={isExternal ? 'noopener noreferrer' : undefined}
       style={
