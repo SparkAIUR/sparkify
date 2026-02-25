@@ -1,5 +1,11 @@
 # sparkify-core
 
+## 0.2.3
+
+### Patch Changes
+
+- 5f3878e: Fix search result snippets to use sanitized source MDX content so generated `.mintlify` import statements do not appear in search previews.
+
 ## 0.2.2
 
 ### Patch Changes
