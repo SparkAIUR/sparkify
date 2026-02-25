@@ -109,9 +109,17 @@ runs:
       run: |
         set -euo pipefail
 
+        workspace_root="${GITHUB_WORKSPACE:-$PWD}"
+
+        resolve_path() {
+          node -e 'const path = require("node:path"); process.stdout.write(path.resolve(process.argv[1], process.argv[2]));' "$workspace_root" "$1"
+        }
+
         docs_dir="${{ inputs.docs-dir }}"
         config_path="${{ inputs.config-path }}"
         out_dir="${{ inputs.out-dir }}"
+        fastapi_cwd="${{ inputs.fastapi-cwd }}"
+        fastapi_env_file="${{ inputs.fastapi-env-file }}"
 
         strict="$(echo "${{ inputs.strict }}" | tr '[:upper:]' '[:lower:]')"
         debug="$(echo "${{ inputs.debug }}" | tr '[:upper:]' '[:lower:]')"
@@ -131,10 +139,14 @@ runs:
           exit 1
         fi
 
-        if [[ ! -d "$docs_dir" ]]; then
+        docs_dir_abs="$(resolve_path "$docs_dir")"
+        if [[ ! -d "$docs_dir_abs" ]]; then
           echo "::error::docs directory '$docs_dir' does not exist. Ensure actions/checkout runs before this action."
           exit 1
         fi
+
+        out_dir_abs="$(resolve_path "$out_dir")"
+        fastapi_cwd_abs="$(resolve_path "$fastapi_cwd")"
 
         sparkify_version_input="${{ inputs.sparkify-version }}"
         if [[ "$sparkify_version_input" == "repo" ]]; then
@@ -169,29 +181,53 @@ runs:
         if [[ -z "$resolved_fastapi_out" ]]; then
           resolved_fastapi_out="${docs_dir%/}/openapi.json"
         fi
+        fastapi_out_abs="$(resolve_path "$resolved_fastapi_out")"
+
+        config_path_abs=""
+        if [[ -n "$config_path" ]]; then
+          config_path_abs="$(resolve_path "$config_path")"
+        fi
+
+        fastapi_env_file_abs=""
+        if [[ -n "$fastapi_env_file" ]]; then
+          fastapi_env_file_abs="$(resolve_path "$fastapi_env_file")"
+        fi
 
         echo "sparkify-version=$sparkify_version" >> "$GITHUB_OUTPUT"
         echo "site=$resolved_site" >> "$GITHUB_OUTPUT"
         echo "base=$resolved_base" >> "$GITHUB_OUTPUT"
         echo "out-dir=$out_dir" >> "$GITHUB_OUTPUT"
+        echo "out-dir-abs=$out_dir_abs" >> "$GITHUB_OUTPUT"
         echo "docs-dir=$docs_dir" >> "$GITHUB_OUTPUT"
+        echo "docs-dir-abs=$docs_dir_abs" >> "$GITHUB_OUTPUT"
         echo "config-path=$config_path" >> "$GITHUB_OUTPUT"
+        echo "config-path-abs=$config_path_abs" >> "$GITHUB_OUTPUT"
         echo "strict=$strict" >> "$GITHUB_OUTPUT"
         echo "debug=$debug" >> "$GITHUB_OUTPUT"
         echo "upload-pages=$upload_pages" >> "$GITHUB_OUTPUT"
         echo "deploy-pages=$deploy_pages" >> "$GITHUB_OUTPUT"
         echo "fastapi-out=$resolved_fastapi_out" >> "$GITHUB_OUTPUT"
+        echo "fastapi-out-abs=$fastapi_out_abs" >> "$GITHUB_OUTPUT"
+        echo "fastapi-cwd-abs=$fastapi_cwd_abs" >> "$GITHUB_OUTPUT"
+        echo "fastapi-env-file-abs=$fastapi_env_file_abs" >> "$GITHUB_OUTPUT"
 
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
         node-version: ${{ inputs.node-version }}
 
-    - name: Install template runtime dependencies
+    - name: Prepare sparkify runtime
+      id: runtime
       shell: bash
       run: |
         set -euo pipefail
-        npm install --no-save --no-package-lock "sparkify-template-astro@${{ steps.resolve.outputs.sparkify-version }}"
+        runtime_dir="${RUNNER_TEMP:-/tmp}/sparkify-action-runtime"
+        rm -rf "$runtime_dir"
+        mkdir -p "$runtime_dir"
+        npm install --prefix "$runtime_dir" --no-save --no-package-lock \
+          "sparkify@${{ steps.resolve.outputs.sparkify-version }}" \
+          "sparkify-template-astro@${{ steps.resolve.outputs.sparkify-version }}"
+        echo "runtime-dir=$runtime_dir" >> "$GITHUB_OUTPUT"
 
     - name: Set up Python
       if: ${{ inputs.fastapi-app != '' }}
@@ -202,6 +238,7 @@ runs:
     - name: Install Python dependencies
       if: ${{ inputs.fastapi-app != '' }}
       shell: bash
+      working-directory: ${{ steps.resolve.outputs.fastapi-cwd-abs }}
       run: |
         set -euo pipefail
         ${{ inputs.python-deps-command }}
@@ -209,49 +246,43 @@ runs:
     - name: Export OpenAPI from FastAPI
       if: ${{ inputs.fastapi-app != '' }}
       shell: bash
+      working-directory: ${{ steps.runtime.outputs.runtime-dir }}
       run: |
         set -euo pipefail
         args=(
-          exec
-          --yes
-          --package "sparkify@${{ steps.resolve.outputs.sparkify-version }}"
-          --
-          sparkify
+          "${{ steps.runtime.outputs.runtime-dir }}/node_modules/.bin/sparkify"
           export-openapi
           --fastapi "${{ inputs.fastapi-app }}"
-          --cwd "${{ inputs.fastapi-cwd }}"
-          --out "${{ steps.resolve.outputs.fastapi-out }}"
+          --cwd "${{ steps.resolve.outputs.fastapi-cwd-abs }}"
+          --out "${{ steps.resolve.outputs.fastapi-out-abs }}"
           --python "${{ inputs.python-executable }}"
         )
         if [[ -n "${{ inputs.fastapi-server-url }}" ]]; then
           args+=(--server-url "${{ inputs.fastapi-server-url }}")
         fi
-        if [[ -n "${{ inputs.fastapi-env-file }}" ]]; then
-          args+=(--env-file "${{ inputs.fastapi-env-file }}")
+        if [[ -n "${{ steps.resolve.outputs.fastapi-env-file-abs }}" ]]; then
+          args+=(--env-file "${{ steps.resolve.outputs.fastapi-env-file-abs }}")
         fi
         if [[ -n "${{ inputs.fastapi-pythonpath }}" ]]; then
           args+=(--pythonpath "${{ inputs.fastapi-pythonpath }}")
         fi
-        npm "${args[@]}"
+        "${args[@]}"
 
     - name: Build docs with sparkify
       shell: bash
+      working-directory: ${{ steps.runtime.outputs.runtime-dir }}
       run: |
         set -euo pipefail
         args=(
-          exec
-          --yes
-          --package "sparkify@${{ steps.resolve.outputs.sparkify-version }}"
-          --
-          sparkify
+          "${{ steps.runtime.outputs.runtime-dir }}/node_modules/.bin/sparkify"
           build
-          --docs-dir "${{ steps.resolve.outputs.docs-dir }}"
-          --out "${{ steps.resolve.outputs.out-dir }}"
+          --docs-dir "${{ steps.resolve.outputs.docs-dir-abs }}"
+          --out "${{ steps.resolve.outputs.out-dir-abs }}"
           --site "${{ steps.resolve.outputs.site }}"
           --base "${{ steps.resolve.outputs.base }}"
         )
-        if [[ -n "${{ steps.resolve.outputs.config-path }}" ]]; then
-          args+=(--config "${{ steps.resolve.outputs.config-path }}")
+        if [[ -n "${{ steps.resolve.outputs.config-path-abs }}" ]]; then
+          args+=(--config "${{ steps.resolve.outputs.config-path-abs }}")
         fi
         if [[ "${{ steps.resolve.outputs.strict }}" == "true" ]]; then
           args+=(--strict)
@@ -259,13 +290,13 @@ runs:
         if [[ "${{ steps.resolve.outputs.debug }}" == "true" ]]; then
           args+=(--debug)
         fi
-        npm "${args[@]}"
+        "${args[@]}"
 
     - name: Upload GitHub Pages artifact
       if: ${{ steps.resolve.outputs.upload-pages == 'true' }}
       uses: actions/upload-pages-artifact@v3
       with:
-        path: ${{ steps.resolve.outputs.out-dir }}
+        path: ${{ steps.resolve.outputs.out-dir-abs }}
 
     - name: Deploy GitHub Pages artifact
       id: deploy
